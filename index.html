@@ -1,0 +1,1288 @@
+<!-- BUILT by build-app.js — hosted build -->
+<!-- 00_core.html -->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#c0392b">
+<title>Common House Gift Shop</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Shop">
+<script src="./config.js"></script>
+<style>
+  :root { --ink:#1d2229; --mute:#5f6975; --line:#dfe3e8; --bg:#f4f5f7; --card:#fff; --accent:#c0392b; --ok:#2e7d4f; --warn:#9a5b00; --tap:#ffe9e6; --on-accent:#fff; }
+  @media (prefers-color-scheme: dark) { html:not([data-theme=light]) { --ink:#eceef1; --mute:#a3acb8; --line:#333b45; --bg:#14181d; --card:#1e242b; --accent:#e5644d; --ok:#5fbf86; --warn:#e0a84a; --tap:#3a2622; --on-accent:#fff; } }
+  html[data-theme=dark] { --ink:#eceef1; --mute:#a3acb8; --line:#333b45; --bg:#14181d; --card:#1e242b; --accent:#e5644d; --ok:#5fbf86; --warn:#e0a84a; --tap:#3a2622; --on-accent:#fff; }
+  html.contrast { --mute:#2b323b; --line:#7a8591; } html.contrast[data-theme=dark], @media (prefers-color-scheme: dark) { html.contrast:not([data-theme=light]) { --mute:#dfe4ea; --line:#8f9aa6; } }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; font:16px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color:var(--ink); background:var(--bg); }
+  header { position:sticky; top:0; background:var(--card); border-bottom:1px solid var(--line); padding:8px 12px; display:flex; align-items:center; justify-content:space-between; z-index:2; gap:8px; min-height:52px; }
+  header h1 { font-size:17px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  header small { color:var(--mute); font-size:13px; white-space:nowrap; }
+  nav { display:flex; background:var(--card); border-bottom:1px solid var(--line); overflow-x:auto; scrollbar-width:none; }
+  nav::-webkit-scrollbar { display:none; }
+  nav button { flex:1; min-width:84px; min-height:48px; border:0; background:none; padding:12px 8px; font-size:14px; font-weight:600; color:var(--mute); border-bottom:3px solid transparent; white-space:nowrap; }
+  nav button.on { color:var(--accent); border-bottom-color:var(--accent); }
+  main { padding:12px 12px 130px; }
+  .screen { display:none; } .screen.on { display:block; }
+  input[type=search], input[type=number], input[type=text], input[type=tel], input[type=email], select { width:100%; font-size:16px; min-height:48px; padding:11px 12px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); }
+  button { color:var(--ink); font-family:inherit; }
+  button, .chip, .btn { min-height:44px; cursor:pointer; }
+  :focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .list { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+  .row { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:10px; min-height:56px; }
+  .row .name { flex:1; min-width:0; } .row .name b { display:block; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row .name span { color:var(--mute); font-size:13px; }
+  .row .price { font-variant-numeric:tabular-nums; font-weight:600; }
+  .row.low .name span { color:var(--warn); font-weight:600; }
+  .row.tappable:active { background:var(--tap); }
+  .qty { display:flex; align-items:center; gap:4px; }
+  .qty button { width:44px; height:44px; border-radius:22px; border:1px solid var(--line); background:var(--card); font-size:22px; line-height:1; }
+  .qty b { min-width:26px; text-align:center; }
+  .count-in { width:84px; text-align:center; }
+  .btn { display:block; width:100%; border:0; border-radius:10px; padding:14px; font-size:17px; font-weight:700; background:var(--accent); color:var(--on-accent); min-height:48px; }
+  .btn.ghost { background:var(--card); color:var(--ink); border:1px solid var(--line); }
+  .btn.sm { width:auto; padding:10px 14px; font-size:14px; }
+  .btn:disabled { opacity:.5; }
+  .cart { position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:10px 12px 14px; box-shadow:0 -6px 20px rgba(0,0,0,.08); z-index:3; }
+  .cart .pay { display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+  .cart .pay button { flex:1; min-width:92px; padding:10px; border-radius:8px; border:1px solid var(--line); background:var(--card); font-weight:600; color:var(--ink); }
+  .cart .pay button.on { border-color:var(--accent); color:var(--accent); background:var(--tap); }
+  .tiles { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; }
+  .tile small { display:block; color:var(--mute); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .tile b { font-size:18px; font-variant-numeric:tabular-nums; }
+  .toast { position:fixed; top:110px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:12px 16px; border-radius:8px; font-weight:600; opacity:0; transition:opacity .2s; pointer-events:none; z-index:7; max-width:90vw; text-align:center; }
+  .toast.on { opacity:1; }
+  .toast.bad { background:var(--accent); color:var(--on-accent); }
+  .toast.act { pointer-events:auto; }
+  .toast button { margin-left:12px; background:var(--card); color:var(--ink); border:0; border-radius:6px; padding:8px 12px; font-weight:700; min-height:44px; }
+  .muted { color:var(--mute); font-size:14px; }
+  .pin { display:flex; gap:8px; margin:12px 0; }
+  .pin input { flex:1; }
+  a.link { color:var(--accent); font-weight:600; }
+  .chip { border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:22px; padding:8px 14px; font-size:14px; font-weight:600; }
+  .chip.on { border-color:var(--accent); color:var(--accent); background:var(--tap); }
+  .chips { display:flex; gap:6px; overflow-x:auto; padding:2px 0 8px; scrollbar-width:none; }
+  .chips::-webkit-scrollbar { display:none; }
+  .chips .chip { white-space:nowrap; flex:none; }
+  .hdr-right { display:flex; align-items:center; gap:8px; }
+  .search { display:flex; gap:6px; }
+  .search input { flex:1; }
+  .search .scan { width:52px; min-height:48px; border:1px solid var(--line); border-radius:8px; background:var(--card); font-size:20px; }
+  .row img.thumb { width:48px; height:48px; object-fit:cover; border-radius:8px; border:1px solid var(--line); }
+  .sheet { position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:14px 12px 20px; z-index:6; box-shadow:0 -6px 20px rgba(0,0,0,.12); max-height:70vh; overflow:auto; }
+  .sheet h3 { margin:0 0 10px; font-size:15px; }
+  .sheet .opts { display:flex; flex-wrap:wrap; gap:8px; }
+  .sheet .opts button { padding:12px 16px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--ink); font-size:16px; font-weight:600; min-height:48px; }
+  .sheet .opts button.on { border-color:var(--accent); color:var(--accent); background:var(--tap); }
+  .scanner { position:fixed; inset:0; background:#000; z-index:8; display:flex; flex-direction:column; }
+  .scanner video { flex:1; width:100%; object-fit:cover; }
+  .scanner .line { position:absolute; left:10%; right:10%; top:50%; height:2px; background:var(--accent); box-shadow:0 0 12px var(--accent); }
+  .scanner .bar { padding:14px; display:flex; gap:10px; background:#111; }
+  .scanner .bar button { flex:1; }
+  .scanner .msg { position:absolute; top:16px; left:0; right:0; text-align:center; color:#fff; font-weight:600; text-shadow:0 1px 4px #000; padding:0 16px; }
+  @media (min-width: 768px) {
+    body { font-size:17px; }
+    main { max-width:1100px; margin:0 auto; padding:16px 16px 40px; }
+    #s-sell { display:none; grid-template-columns:1fr 360px; gap:16px; align-items:start; }
+    #s-sell.on { display:grid; }
+    #s-sell > * { grid-column:1; }
+    #s-sell .list { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    body.wide .cart { position:sticky; top:120px; grid-column:2; grid-row:1 / span 20; border:1px solid var(--line); border-radius:12px; box-shadow:none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .toast { transition:none; } }
+</style>
+</head>
+<body>
+<header><h1 id="shop">Shop</h1><div class="hdr-right"><button class="chip" id="staff-chip">Who's on?</button><small id="stamp">loading…</small><button class="chip" id="menu-chip" title="Settings" aria-label="Settings">⋯</button></div></header>
+<nav id="nav"></nav>
+<main id="main"><div class="toast" id="toast"></div></main>
+
+<script>
+/**
+ * App — the tiny framework every screen plugs into. Screens live in their own files and call App.screen({...}).
+ * Transport: google.script.run inside Apps Script; fetch(App.apiUrl) when hosted elsewhere; App.mock when previewing a file.
+ */
+window.App = (function () {
+  var screens = [], current = null, data = null, listeners = {}, pin = '';
+  var store = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }, del: function (k) { try { localStorage.removeItem(k); } catch (e) {} } };
+  pin = store.get('shop-pin') || '';
+  var $ = function (id) { return document.getElementById(id); };
+  var money = function (n) { return '$' + (Math.round(n * 100) / 100).toFixed(2); };
+
+  function call(fn, args) {
+    args = args || [];
+    // A hosted build (PWA) installs App.transport to add caching, an offline queue, or a different server.
+    if (App.transport) return Promise.resolve().then(function () { return App.transport(fn, args); });
+    return new Promise(function (resolve, reject) {
+      if (typeof google !== 'undefined' && google.script) {
+        google.script.run.withSuccessHandler(resolve).withFailureHandler(function (e) { reject(new Error(e && e.message ? e.message : String(e))); })[fn].apply(google.script.run, args);
+      } else if (App.apiUrl) {
+        fetch(App.apiUrl, { method: 'POST', body: JSON.stringify({ fn: fn, args: args }) })
+          .then(function (r) { return r.json(); })
+          .then(function (j) { j && j.ok ? resolve(j.result) : reject(new Error(j && j.error ? j.error : 'Request failed')); })
+          .catch(reject);
+      } else {
+        setTimeout(function () { try { if (!App.mock[fn]) throw new Error('Unknown function ' + fn); resolve(App.mock[fn].apply(null, args)); } catch (e) { reject(e); } }, 150);
+      }
+    });
+  }
+
+  // ---- sounds and haptics
+  var audio = null;
+  function soundsOn() { return store.get('shop-sounds') !== 'off'; }
+  function beep(kind) {
+    if (!soundsOn()) return;
+    try { if (navigator.vibrate) navigator.vibrate(kind === 'error' ? [60, 40, 60] : 30); } catch (e) {}
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      audio = audio || new AC();
+      var play = function (freq, at, dur) { var o = audio.createOscillator(), g = audio.createGain(); o.type = 'sine'; o.frequency.value = freq; g.gain.value = 0.0001; o.connect(g); g.connect(audio.destination); o.start(at); g.gain.exponentialRampToValueAtTime(0.25, at + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, at + dur); o.stop(at + dur + 0.02); };
+      var t = audio.currentTime;
+      if (kind === 'error') { play(220, t, 0.12); play(196, t + 0.14, 0.16); } else if (kind === 'scan') { play(1200, t, 0.06); } else { play(880, t, 0.07); play(1320, t + 0.08, 0.09); }
+    } catch (e) {}
+  }
+
+  /** toast('Sold $12') · toast('Wrong PIN', true) · toast('Sold $12', false, { label: 'Undo', fn: function () {...} }) */
+  function toast(msg, bad, action) {
+    var t = $('toast'); t.textContent = msg; t.className = 'toast on' + (bad ? ' bad' : '') + (action ? ' act' : '');
+    if (action) { var b = document.createElement('button'); b.textContent = action.label; b.onclick = function () { t.className = 'toast'; action.fn(); }; t.appendChild(b); }
+    if (bad) beep('error');
+    clearTimeout(toast.h); toast.h = setTimeout(function () { t.className = 'toast'; }, action ? 6000 : 2200);
+  }
+
+  function needPin() {
+    if (App.kiosk) return true;
+    if (!data || !data.needsPin || pin) return true;
+    var p = prompt('Staff PIN (it is on the Settings tab of the sheet)');
+    if (!p) return false;
+    pin = p; store.set('shop-pin', p);
+    return true;
+  }
+  function pinFailed(err) { var msg = err && err.message ? err.message : String(err); if (/PIN/i.test(msg)) { pin = ''; store.del('shop-pin'); } toast(msg, true); }
+
+  function on(evt, fn) { (listeners[evt] = listeners[evt] || []).push(fn); }
+  function emit(evt, payload) { (listeners[evt] || []).forEach(function (fn) { try { fn(payload); } catch (e) { console.error(e); } }); }
+
+  // ---- search: prefix, then contains, then any word order, then a forgiving subsequence/bigram match
+  function norm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function bigrams(s) { var out = {}; for (var i = 0; i < s.length - 1; i++) out[s.slice(i, i + 2)] = 1; return out; }
+  function score(q, text) {
+    if (!q) return 0;
+    var t = norm(text);
+    if (t.indexOf(q) === 0) return 0;
+    if (t.indexOf(q) >= 0) return 1;
+    var words = q.split(' ');
+    if (words.length > 1 && words.every(function (w) { return t.indexOf(w) >= 0; })) return 2;
+    var i = 0; for (var k = 0; k < t.length && i < q.length; k++) if (t[k] === q[i]) i++;
+    if (i === q.length) return 3;
+    if (q.length >= 4) { var a = bigrams(q), b = bigrams(t), hit = 0, n = 0; for (var g in a) { n++; if (b[g]) hit++; } if (n && hit / n >= 0.6) return 4; }
+    return -1;
+  }
+  function items() { return data ? data.items : []; }
+  function filtered(q) {
+    q = norm(q);
+    if (!q) return items().slice();
+    return items().map(function (i) {
+      var s = score(q, i.item);
+      if (s < 0 && i.sku && norm(i.sku).indexOf(q) >= 0) s = 1;
+      if (s < 0 && i.barcode && String(i.barcode).indexOf(q) >= 0) s = 0;
+      if (s < 0 && i.cat && norm(i.cat).indexOf(q) >= 0) s = 5;
+      return { i: i, s: s };
+    }).filter(function (x) { return x.s >= 0; }).sort(function (a, b) { return a.s - b.s || a.i.item.localeCompare(b.i.item); }).map(function (x) { return x.i; });
+  }
+  function rowEl(i, cls) {
+    var d = document.createElement('div');
+    d.className = 'row ' + (cls || '') + (i.low ? ' low' : '');
+    d.innerHTML = (i.photo ? '<img class="thumb" alt="" loading="lazy">' : '') + '<div class="name"><b></b><span></span></div>';
+    if (i.photo) d.querySelector('img').src = i.photo;
+    d.querySelector('b').textContent = i.item;
+    d.querySelector('span').textContent = i.onHand + ' on hand' + (i.onOrder ? ' · ' + i.onOrder + ' on order' : '') + (i.low ? ' · low' : '') + ' · ' + i.cat;
+    return d;
+  }
+
+  // ---- recently sold on this phone (last 8 distinct items)
+  function recent() { try { return JSON.parse(store.get('shop-recent') || '[]'); } catch (e) { return []; } }
+  on('sale', function (r) {
+    var skus = ((r && r.lines) || []).map(function (l) { return l.sku; }).filter(Boolean);
+    if (!skus.length) return;
+    var list = recent().filter(function (k) { return skus.indexOf(k) < 0; });
+    store.set('shop-recent', JSON.stringify(skus.concat(list).slice(0, 8)));
+    emit('recent', recent());
+  });
+
+  // ---- staff: who is on the register
+  var staff = store.get('shop-staff') || '';
+  function setStaff(name) { staff = name || ''; store.set('shop-staff', staff); $('staff-chip').textContent = staff || "Who's on?"; $('staff-chip').classList.toggle('on', !!staff); emit('staff', staff); }
+  function pickStaff() {
+    var names = (data && data.staff) || [];
+    if (!names.length) { var typed = prompt('Your name'); if (typed) setStaff(typed.trim()); return; }
+    choose("Who's on the register?", names.concat(['Someone else']), staff, function (n) { if (n === 'Someone else') { var t = prompt('Your name'); if (t) setStaff(t.trim()); } else setStaff(n); });
+  }
+  /** Bottom sheet of big buttons. choose(title, options, current, fn(option)) */
+  function choose(title, options, current, fn) {
+    var old = document.querySelector('.sheet'); if (old) old.remove();
+    var sh = document.createElement('div'); sh.className = 'sheet';
+    var h = document.createElement('h3'); h.textContent = title; sh.appendChild(h);
+    var opts = document.createElement('div'); opts.className = 'opts';
+    options.forEach(function (o) { var b = document.createElement('button'); b.textContent = o; if (o === current) b.className = 'on'; b.onclick = function () { sh.remove(); fn(o); }; opts.appendChild(b); });
+    var x = document.createElement('button'); x.textContent = 'Cancel'; x.onclick = function () { sh.remove(); }; opts.appendChild(x);
+    sh.appendChild(opts); document.body.appendChild(sh);
+  }
+
+  // ---- theme, contrast, sounds
+  function applyTheme() {
+    var th = store.get('shop-theme') || 'auto';
+    if (th === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', th);
+    document.documentElement.classList.toggle('contrast', store.get('shop-contrast') === 'on');
+  }
+  function settingsMenu() {
+    var th = store.get('shop-theme') || 'auto';
+    choose('Settings on this phone', ['Theme: ' + th, 'Sounds: ' + (soundsOn() ? 'on' : 'off'), 'High contrast: ' + (store.get('shop-contrast') === 'on' ? 'on' : 'off'), 'Forget my PIN', 'Reload'], null, function (o) {
+      if (o.indexOf('Theme') === 0) { store.set('shop-theme', th === 'auto' ? 'dark' : th === 'dark' ? 'light' : 'auto'); applyTheme(); toast('Theme: ' + (store.get('shop-theme'))); }
+      else if (o.indexOf('Sounds') === 0) { store.set('shop-sounds', soundsOn() ? 'off' : 'on'); toast('Sounds ' + (soundsOn() ? 'on' : 'off')); if (soundsOn()) beep('ok'); }
+      else if (o.indexOf('High contrast') === 0) { store.set('shop-contrast', store.get('shop-contrast') === 'on' ? 'off' : 'on'); applyTheme(); }
+      else if (o === 'Forget my PIN') { pin = ''; store.del('shop-pin'); toast('PIN forgotten on this phone'); }
+      else if (o === 'Reload') location.reload();
+    });
+  }
+
+  // ---- barcode scanning: camera (BarcodeDetector, else ZXing loaded on demand), hardware scanners, manual entry
+  var ZXING_URL = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+  function loadScript(url) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = url; s.onload = res; s.onerror = function () { rej(new Error('Could not load the scanner library')); }; document.head.appendChild(s); }); }
+  function cameraScanner(onCode) {
+    var wrap = document.createElement('div'); wrap.className = 'scanner';
+    wrap.innerHTML = '<div class="msg">Point the camera at the barcode</div><video playsinline autoplay muted></video><div class="line"></div><div class="bar"><button class="btn ghost" data-a="type">Type it</button><button class="btn ghost" data-a="cancel">Cancel</button></div>';
+    document.body.appendChild(wrap);
+    var video = wrap.querySelector('video'), stream = null, stopped = false, reader = null, timer = null;
+    function stop() { stopped = true; clearInterval(timer); try { if (reader && reader.reset) reader.reset(); } catch (e) {} try { if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} wrap.remove(); }
+    function found(code) { if (stopped) return; stop(); beep('scan'); onCode(code); }
+    wrap.querySelector('[data-a=cancel]').onclick = function () { stop(); };
+    wrap.querySelector('[data-a=type]').onclick = function () { stop(); onCode(prompt('Barcode')); };
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }).then(function (s) {
+      stream = s; video.srcObject = s;
+      if (window.BarcodeDetector) {
+        var det = new BarcodeDetector();
+        timer = setInterval(function () { if (stopped || video.readyState < 2) return; det.detect(video).then(function (codes) { if (codes && codes.length && codes[0].rawValue) found(codes[0].rawValue); }).catch(function () {}); }, 250);
+      } else {
+        wrap.querySelector('.msg').textContent = 'Loading scanner…';
+        loadScript(ZXING_URL).then(function () {
+          if (stopped) return;
+          wrap.querySelector('.msg').textContent = 'Point the camera at the barcode';
+          reader = new ZXing.BrowserMultiFormatReader();
+          reader.decodeFromStream(stream, video, function (result) { if (result && result.getText) found(result.getText()); });
+        }).catch(function (e) { stop(); toast(e.message + '. Type the code instead.', true); onCode(prompt('Barcode')); });
+      }
+    }).catch(function () { stop(); toast('Camera not available here. Type the code instead.', true); onCode(prompt('Barcode')); });
+  }
+  function scanButton(input) {
+    if (!input || input.dataset.scan) return;
+    input.dataset.scan = '1';
+    var wrap = document.createElement('div'); wrap.className = 'search';
+    input.parentNode.insertBefore(wrap, input); wrap.appendChild(input);
+    var b = document.createElement('button'); b.className = 'scan'; b.type = 'button'; b.title = 'Scan a barcode'; b.setAttribute('aria-label', 'Scan a barcode'); b.textContent = '▤';
+    b.onclick = function () {
+      var use = function (code) { if (!code) return; input.value = String(code).trim(); input.dispatchEvent(new Event('input', { bubbles: true })); emit('scan', { code: input.value, input: input }); };
+      if (App.scanner) App.scanner(use); else if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) cameraScanner(use); else use(prompt('Scan or type the barcode'));
+    };
+    wrap.appendChild(b);
+    // category chips under the search box
+    var chips = document.createElement('div'); chips.className = 'chips cat-chips'; wrap.parentNode.insertBefore(chips, wrap.nextSibling);
+    var draw = function () {
+      chips.innerHTML = '';
+      var cats = []; items().forEach(function (i) { if (i.cat && cats.indexOf(i.cat) < 0) cats.push(i.cat); });
+      if (cats.length < 2) return;
+      ['All'].concat(cats.sort()).forEach(function (c) {
+        var ch = document.createElement('button'); ch.className = 'chip' + ((c === 'All' && !input.value) || input.value === c ? ' on' : ''); ch.textContent = c;
+        ch.onclick = function () { input.value = c === 'All' ? '' : c; input.dispatchEvent(new Event('input', { bubbles: true })); draw(); };
+        chips.appendChild(ch);
+      });
+    };
+    on('data', draw); input.addEventListener('input', draw);
+  }
+  // hardware scanners type fast and end with Enter; catch that when no text field has focus
+  (function () {
+    var buf = '', last = 0;
+    document.addEventListener('keydown', function (e) {
+      var tag = (document.activeElement && document.activeElement.tagName) || '';
+      if (/INPUT|TEXTAREA|SELECT/.test(tag) && document.activeElement.type !== 'search') return;
+      var now = Date.now();
+      if (now - last > 80) buf = '';
+      last = now;
+      if (e.key === 'Enter') { if (buf.length >= 4) { e.preventDefault(); var code = buf; buf = ''; beep('scan'); var scr = screens.filter(function (s) { return s.id === current; })[0]; var inp = scr && scr.root.querySelector('input[type=search]'); if (inp) { inp.value = code; inp.dispatchEvent(new Event('input', { bubbles: true })); } emit('scan', { code: code, input: inp || null }); } buf = ''; }
+      else if (e.key.length === 1) buf += e.key;
+    });
+  })();
+
+  function screen(def) { screens.push(def); screens.sort(function (a, b) { return (a.order || 50) - (b.order || 50); }); }
+  function visibleScreens() { return screens.filter(function (s) { return App.kiosk ? s.kioskOnly : !s.kioskOnly; }); }
+  function show(id) {
+    var prev = screens.filter(function (s) { return s.id === current; })[0];
+    if (prev && prev.onHide) prev.onHide();
+    current = id;
+    document.querySelectorAll('#nav button').forEach(function (b) { b.classList.toggle('on', b.dataset.s === id); });
+    screens.forEach(function (s) { s.root.classList.toggle('on', s.id === id); });
+    var def = screens.filter(function (s) { return s.id === id; })[0];
+    if (def && def.onShow) def.onShow();
+    emit('show', id);
+  }
+  function load() {
+    return call(App.loadFn || 'api_load').then(function (d) {
+      data = d;
+      $('shop').textContent = d.shop; $('stamp').textContent = d.items.length + ' items';
+      screens.forEach(function (s) { if (s.onData) { try { s.onData(d); } catch (e) { console.error(e); } } });
+      emit('data', d);
+      return d;
+    }).catch(function (e) { $('stamp').textContent = 'could not load'; toast(e.message || String(e), true); });
+  }
+  function init() {
+    applyTheme();
+    if (window.matchMedia && window.matchMedia('(min-width: 768px)').matches) document.body.classList.add('wide');
+    var nav = $('nav'), main = $('main');
+    var vis = visibleScreens();
+    screens.forEach(function (s) {
+      var root = document.createElement('section'); root.className = 'screen'; root.id = 's-' + s.id; main.appendChild(root); s.root = root;
+      if (vis.indexOf(s) < 0) return;
+      var b = document.createElement('button'); b.textContent = s.title; b.dataset.s = s.id; b.onclick = function () { show(s.id); }; nav.appendChild(b);
+      try { s.render(root); } catch (e) { console.error('screen ' + s.id, e); }
+      root.querySelectorAll('input[type=search]').forEach(scanButton);
+    });
+    $('staff-chip').onclick = pickStaff;
+    $('menu-chip').onclick = settingsMenu;
+    setStaff(staff);
+    if (vis.length) show(vis[0].id);
+    on('sale', function () { beep('ok'); }); on('count', function () { beep('ok'); }); on('receipt', function () { beep('ok'); });
+    load();
+  }
+  document.addEventListener('DOMContentLoaded', init);
+
+  return {
+    screen: screen, show: show, call: call, toast: toast, money: money, needPin: needPin, pinFailed: pinFailed,
+    on: on, emit: emit, items: items, filtered: filtered, score: score, rowEl: rowEl, load: load, $: $, beep: beep, recent: recent,
+    choose: choose, pickStaff: pickStaff, setStaff: setStaff, scanButton: scanButton, scanner: null, store: store,
+    get data() { return data; }, set data(v) { data = v; }, get pin() { return pin; }, get current() { return current; }, get staff() { return staff; },
+    apiUrl: null, mock: {}, transport: null, loadFn: 'api_load', kiosk: null
+  };
+})();
+
+// Preview data so the file renders outside Apps Script (opening webapp.html directly, screenshots, tests).
+App.mock.api_load = function () { return { shop: 'Common House Gift Shop (preview)', location: 'Common House', week: 412.5, month: 1180, lowCount: 3, needsPin: true, taxRate: 5.5, staff: ['Elliott', 'Jess'], squareAppId: '', payLink: '', bundles: [{ name: 'Pie & Moxie', price: 6.5, regular: 8, saves: 1.5, lines: [] }], markdownPct: 20, items: [
+  { sku: 'EX-003', item: 'Whoopie pie twin pack', cat: 'Maine-made food', price: 5.5, cost: 2.4, onHand: 9, onOrder: 0, reorder: 16, low: true, sold30: 41, taxable: false, barcode: '', photo: '', bestBy: '2026-12-01', lastCounted: '' },
+  { sku: 'EX-001', item: 'Maine maple syrup 8oz leaf bottle', cat: 'Maine-made food', price: 14, cost: 6.5, onHand: 11, onOrder: 12, reorder: 8, low: false, sold30: 13, taxable: false, barcode: '', photo: '', bestBy: '', lastCounted: '2026-09-02' },
+  { sku: 'EX-007', item: 'Lobster plush 8in', cat: 'Kids & toys', price: 15, cost: 6.9, onHand: 3, onOrder: 0, reorder: 4, low: true, sold30: 9, taxable: true, barcode: '0123456789012', photo: '', bestBy: '', lastCounted: '' },
+  { sku: 'EX-006', item: 'Common House of Pizza tee', cat: 'Common House merch', price: 22, cost: 8, onHand: 17, onOrder: 0, reorder: 6, low: false, sold30: 7, taxable: true, barcode: '', photo: '', bestBy: '', lastCounted: '' },
+  { sku: 'EX-004', item: 'Sea glass earrings', cat: 'Local crafts', price: 24, cost: 0, onHand: 6, onOrder: 0, reorder: 4, low: false, sold30: 4, consign: true, vendor: 'Tides & Threads (Sarah)', taxable: true, barcode: '', photo: '', bestBy: '', lastCounted: '' }
+] }; };
+App.mock.api_loadFast = App.mock.api_load;
+App.mock.api_sell = function (p, lines, payment) { var t = 0; lines.forEach(function (l) { t += (l.qty || 1) * (l.price || 5) - (l.discount || 0); }); return { ok: true, ref: 'app:1', total: t, tax: Math.round(t * 5.5) / 100, grand: t + Math.round(t * 5.5) / 100, items: lines.map(function (l) { return l.sku || l.bundle; }), lines: lines, warnings: [], payment: payment }; };
+App.mock.api_count = function (p, sku, counted) { return { item: sku, expected: 9, counted: counted, adjustment: counted - 9, squarePushed: false }; };
+App.mock.api_receive = function (p, sku, qty) { return { item: sku, qty: qty }; };
+App.mock.api_reorder = function () { return { amazonCartUrl: 'https://www.amazon.com/gp/aws/cart/add.html?ASIN.1=B07HRPH2PC&Quantity.1=2', amazonCount: 1, rows: [
+  { item: 'Whoopie pie twin pack', sku: 'EX-003', supplier: 'Cranberry Island Kitchen', onHand: 9, onOrder: 0, qty: 40, cost: 96, link: '', weeks: 0.9, source: 'Local maker', vendor: 'Cranberry Island Kitchen', pack: 20, unitCost: 2.4 },
+  { item: 'Lobster plush 8in', sku: 'EX-007', supplier: 'Amazon', onHand: 3, onOrder: 0, qty: 8, cost: 55.2, link: 'https://www.amazon.com/dp/B07HRPH2PC', weeks: 1.4, source: 'Amazon', vendor: 'Amazon', pack: 4, unitCost: 6.9 } ] }; };
+</script>
+
+<!-- 01_pwa.html -->
+<script>
+/**
+ * PWA layer — only active when the app is hosted outside Apps Script (GitHub Pages). Adds: the fetch transport to the
+ * Apps Script JSON API, instant open from the last saved load, an offline queue for writes with replay, and the
+ * service worker registration. Inside Apps Script (google.script present) this file does nothing.
+ */
+(function () {
+  if (typeof google !== 'undefined' && google.script) return;
+  var cfg = window.SHOP_CONFIG || {};
+  if (!App.apiUrl && cfg.execUrl) App.apiUrl = cfg.execUrl;
+  if (!App.apiUrl) return; // plain file preview: keep the mocks
+
+  var store = App.store;
+  var WRITES = { api_sell: 1, api_count: 1, api_receive: 1, api_refund: 1, api_expense: 1, api_stamp: 1 };
+  var QKEY = 'shop-queue', LKEY = 'shop-load-cache', FNKEY = 'shop-loadfn';
+  var servedCache = false, refreshing = false;
+
+  function post(fn, args) {
+    // text/plain body: no CORS preflight; Apps Script answers with a 302 that fetch follows to the JSON result.
+    return fetch(App.apiUrl, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ fn: fn, args: args }) })
+      .then(function (r) { return r.text(); })
+      .then(function (t) { var j; try { j = JSON.parse(t); } catch (e) { throw new Error('The server answered with something that was not data'); } if (!j.ok) throw new Error(j.error || 'Request failed'); return j.result; });
+  }
+  function queue() { try { return JSON.parse(store.get(QKEY) || '[]'); } catch (e) { return []; } }
+  function saveQueue(q) { store.set(QKEY, JSON.stringify(q)); badge(); }
+  function badge() {
+    var n = queue().length, el = document.getElementById('queue-badge');
+    if (!el) { el = document.createElement('span'); el.id = 'queue-badge'; el.className = 'chip'; el.style.background = 'var(--warn)'; el.style.color = '#fff'; el.style.borderColor = 'transparent'; var h = document.querySelector('header .hdr-right'); if (h) h.insertBefore(el, h.firstChild); }
+    el.hidden = !n; el.textContent = n + ' to sync';
+  }
+  function offlineResult(fn, args, ref, n) {
+    var base = { ok: true, offline: true, queued: n, ref: ref, warnings: [], items: [] };
+    if (fn === 'api_sell') { var t = 0; (args[1] || []).forEach(function (l) { t += (l.qty || 1) * (l.price || 0) - (l.discount || 0); }); base.total = Math.round(t * 100) / 100; base.tax = 0; base.grand = base.total; base.lines = args[1] || []; base.items = (args[1] || []).map(function (l) { return l.sku || l.bundle; }); }
+    if (fn === 'api_count') { base.item = args[1]; base.counted = args[2]; base.expected = args[2]; base.adjustment = 0; }
+    if (fn === 'api_receive') { base.item = args[1]; base.qty = args[2]; }
+    if (fn === 'api_refund') { base.total = 0; base.tax = 0; base.grand = 0; base.lines = (args[1] && args[1].lines) || []; }
+    if (fn === 'api_expense') { base.amount = args[1] && args[1].amount; base.category = args[1] && args[1].category; }
+    if (fn === 'api_stamp') { base.stamps = 0; base.rewardReady = false; }
+    return base;
+  }
+  function isOffline(err) { return !navigator.onLine || (err && (err.name === 'TypeError' || /Failed to fetch|NetworkError|Load failed/i.test(err.message || ''))); }
+
+  App.transport = function (fn, args) {
+    if (fn === 'api_load' || fn === 'api_loadFast') {
+      var cached = null; try { cached = JSON.parse(store.get(LKEY) || 'null'); } catch (e) {}
+      if (cached && cached.data && !servedCache) {
+        servedCache = true;
+        setTimeout(function () { refreshing = true; App.load().then(function () { refreshing = false; }); }, 50);
+        var d = cached.data; d.stale = cached.when; note(cached.when);
+        return Promise.resolve(d);
+      }
+      var use = store.get(FNKEY) || 'api_loadFast';
+      return post(use, []).catch(function (e) {
+        if (/Unknown function/.test(e.message) && use === 'api_loadFast') { store.set(FNKEY, 'api_load'); return post('api_load', []); }
+        throw e;
+      }).then(function (d) { store.set(LKEY, JSON.stringify({ when: Date.now(), data: d })); note(null); return d; })
+        .catch(function (e) { if (cached && cached.data) { note(cached.when); var d2 = cached.data; d2.stale = cached.when; return d2; } throw e; });
+    }
+    if (!WRITES[fn]) return post(fn, args);
+    if (!navigator.onLine) return Promise.resolve(enqueue(fn, args));
+    return post(fn, args).catch(function (e) { if (isOffline(e)) return enqueue(fn, args); throw e; });
+  };
+  function note(when) {
+    var el = document.getElementById('stale-note');
+    if (!when) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'stale-note'; el.className = 'muted'; el.style.textAlign = 'center'; el.style.padding = '4px 0'; var main = document.getElementById('main'); if (main) main.insertBefore(el, main.firstChild); }
+    var d = new Date(when); el.textContent = 'Showing saved data from ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' — refreshing…';
+  }
+  function enqueue(fn, args) {
+    var q = queue();
+    var ref = 'off:' + Date.now() + ':' + Math.random().toString(36).slice(2, 8);
+    q.push({ fn: fn, args: args, clientRef: ref, when: Date.now() });
+    saveQueue(q);
+    App.toast('No signal — saved on this phone, will sync (' + q.length + ' waiting)');
+    return offlineResult(fn, args, ref, q.length);
+  }
+  var replaying = false;
+  function replay() {
+    var q = queue();
+    if (!q.length || replaying || !navigator.onLine) return;
+    replaying = true;
+    var pin = q[0].args[0];
+    post('api_replay', [pin, q.map(function (c) { return { fn: c.fn, args: c.args, clientRef: c.clientRef }; })]).then(function (res) {
+      var done = {}; (res.results || []).forEach(function (r) { if (r.ok) done[r.clientRef] = true; });
+      var left = queue().filter(function (c) { return !done[c.clientRef]; });
+      saveQueue(left);
+      var synced = q.length - left.length;
+      if (synced) { App.toast('Synced ' + synced + ' saved ' + (synced === 1 ? 'action' : 'actions')); App.load(); }
+      if (left.length && res.results && res.results.some(function (r) { return !r.ok && /PIN/.test(r.error || ''); })) App.toast('Saved actions need the right PIN to sync', true);
+    }).catch(function () {}).then(function () { replaying = false; });
+  }
+  window.addEventListener('online', replay);
+  setInterval(replay, 60000);
+  document.addEventListener('DOMContentLoaded', function () { badge(); setTimeout(replay, 1500); });
+  if ('serviceWorker' in navigator && cfg.sw !== false) { window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); }); }
+})();
+</script>
+
+<!-- 03_kiosk.html -->
+<style>
+  body.kiosk header, body.kiosk nav { display:none; }
+  body.kiosk main { padding:16px 16px 140px; max-width:960px; margin:0 auto; }
+  .k-title { font-size:26px; font-weight:800; margin:6px 0 12px; }
+  .k-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; }
+  .k-tile { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px; min-height:150px; display:flex; flex-direction:column; justify-content:flex-end; position:relative; text-align:left; color:var(--ink); font-size:16px; }
+  .k-tile img, .k-tile .k-init { width:100%; height:84px; object-fit:cover; border-radius:10px; margin-bottom:6px; }
+  .k-tile .k-init { display:flex; align-items:center; justify-content:center; font-size:34px; font-weight:800; color:#fff; }
+  .k-tile b { display:block; font-size:15px; line-height:1.2; }
+  .k-tile .k-badge { position:absolute; top:8px; right:8px; background:var(--accent); color:#fff; border-radius:14px; min-width:28px; height:28px; padding:0 8px; font-weight:800; display:flex; align-items:center; justify-content:center; font-size:15px; }
+  .k-bar { position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:12px 16px 18px; display:flex; gap:12px; align-items:center; z-index:3; }
+  .k-bar .k-sum { flex:1; font-size:18px; font-weight:700; }
+  .k-bar button { font-size:18px; padding:16px 22px; min-height:56px; }
+  .k-pay { text-align:center; padding:20px 0; }
+  .k-pay img { width:280px; height:280px; border-radius:12px; border:1px solid var(--line); }
+  .k-pay .big { font-size:34px; font-weight:800; margin:8px 0; }
+  .k-lines { text-align:left; max-width:420px; margin:12px auto; }
+  .k-thanks { text-align:center; padding:60px 20px; font-size:28px; font-weight:800; }
+</style>
+<script>
+// KIOSK — customer-facing self-checkout. Loads only when the page was opened with ?mode=kiosk&k=<key>.
+(function () {
+  var params = window.APP_PARAMS || {};
+  if (!params.mode && typeof location !== 'undefined' && location.search) { try { location.search.slice(1).split('&').forEach(function (kv) { var p = kv.split('='); params[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ''); }); } catch (e) {} }
+  if (params.mode !== 'kiosk') return;
+  App.kiosk = { key: params.k || '' };
+  document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('kiosk'); });
+
+  var COLORS = ['#c0392b', '#2e7d4f', '#b26a00', '#1f6f8b', '#6c4ab6', '#a3541e'];
+  App.screen({
+    id: 'kiosk', title: 'Shop', order: 0, kioskOnly: true,
+    render: function (root) {
+      var self = this; self.cart = {}; self.stage = 'shop';
+      root.innerHTML = '<div id="k-body"></div>';
+      var bar = document.createElement('div'); bar.className = 'k-bar'; bar.id = 'k-bar'; bar.hidden = true;
+      bar.innerHTML = '<div class="k-sum" id="k-sum"></div><button class="btn ghost" id="k-clear">Start over</button><button class="btn" id="k-pay">Pay</button>';
+      document.body.appendChild(bar);
+      App.$('k-clear').onclick = function () { self.reset(); };
+      App.$('k-pay').onclick = function () { self.pay(); };
+      var idle;
+      var bump = function () { clearTimeout(idle); idle = setTimeout(function () { if (self.stage !== 'shop' || Object.keys(self.cart).length) self.reset(); }, 60000); };
+      ['click', 'touchstart', 'keydown'].forEach(function (ev) { document.addEventListener(ev, bump, { passive: true }); });
+      bump();
+    },
+    onData: function () { if (this.stage === 'shop') this.renderShop(); },
+    reset: function () { this.cart = {}; this.stage = 'shop'; this.renderShop(); },
+    total: function () { var self = this, t = 0, tax = 0, n = 0, rate = (App.data && App.data.taxRate) || 0; Object.keys(self.cart).forEach(function (k) { var it = App.items().filter(function (x) { return x.sku === k; })[0]; if (!it) return; var net = it.price * self.cart[k]; t += net; n += self.cart[k]; if (it.taxable) tax += net * rate / 100; }); return { sub: Math.round(t * 100) / 100, tax: Math.round(tax * 100) / 100, n: n }; },
+    renderShop: function () {
+      var self = this, body = App.$('k-body'); body.innerHTML = '';
+      var h = document.createElement('div'); h.className = 'k-title'; h.textContent = (App.data ? App.data.shop : 'Shop') + ' · tap what you are taking'; body.appendChild(h);
+      var grid = document.createElement('div'); grid.className = 'k-grid';
+      App.items().filter(function (i) { return i.onHand > 0; }).forEach(function (i, idx) {
+        var t = document.createElement('button'); t.className = 'k-tile';
+        if (i.photo) { var img = document.createElement('img'); img.src = i.photo; img.alt = ''; t.appendChild(img); }
+        else { var d = document.createElement('div'); d.className = 'k-init'; d.style.background = COLORS[idx % COLORS.length]; d.textContent = i.item.charAt(0).toUpperCase(); t.appendChild(d); }
+        var b = document.createElement('b'); b.textContent = i.item; t.appendChild(b);
+        var p = document.createElement('span'); p.textContent = App.money(i.price); t.appendChild(p);
+        if (self.cart[i.sku]) { var badge = document.createElement('span'); badge.className = 'k-badge'; badge.textContent = self.cart[i.sku]; t.appendChild(badge); }
+        t.onclick = function () { self.cart[i.sku] = (self.cart[i.sku] || 0) + 1; self.renderShop(); };
+        grid.appendChild(t);
+      });
+      body.appendChild(grid);
+      var tot = self.total();
+      App.$('k-bar').hidden = tot.n === 0;
+      App.$('k-sum').textContent = tot.n + (tot.n === 1 ? ' item · ' : ' items · ') + App.money(tot.sub + tot.tax);
+    },
+    pay: function () {
+      var self = this; self.stage = 'pay';
+      var tot = self.total(); var body = App.$('k-body'); body.innerHTML = ''; App.$('k-bar').hidden = true;
+      var box = document.createElement('div'); box.className = 'k-pay';
+      var lines = Object.keys(self.cart).map(function (k) { var it = App.items().filter(function (x) { return x.sku === k; })[0]; return it ? self.cart[k] + ' × ' + it.item : ''; }).filter(Boolean);
+      var link = (App.data && App.data.payLink) || '';
+      box.innerHTML = '<div class="big">' + App.money(tot.sub + tot.tax) + '</div><div class="muted">' + (tot.tax ? 'includes ' + App.money(tot.tax) + ' tax' : '') + '</div>' +
+        (link ? '<p>Scan to pay, then tap the button below.</p><img alt="Pay by QR" src="https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=' + encodeURIComponent(link) + '">' : '<p>Pay at the counter, then tap the button below.</p>') +
+        '<div class="k-lines">' + lines.map(function (l) { return '<div>' + l.replace(/</g, '&lt;') + '</div>'; }).join('') + '</div>' +
+        '<button class="btn" id="k-paid" style="max-width:420px;margin:12px auto">I\'ve paid</button><button class="btn ghost" id="k-back" style="max-width:420px;margin:8px auto">Back</button>';
+      body.appendChild(box);
+      App.$('k-back').onclick = function () { self.stage = 'shop'; self.renderShop(); };
+      App.$('k-paid').onclick = function () {
+        var btn = App.$('k-paid'); btn.disabled = true; btn.textContent = 'Saving…';
+        var order = Object.keys(self.cart).map(function (k) { return { sku: k, qty: self.cart[k] }; });
+        App.call('api_selfCheckout', [App.kiosk.key, order]).then(function (r) {
+          order.forEach(function (l) { var it = App.items().filter(function (x) { return x.sku === l.sku; })[0]; if (it) it.onHand -= l.qty; });
+          self.stage = 'thanks'; body.innerHTML = '<div class="k-thanks">Thank you!<br><span class="muted" style="font-size:18px;font-weight:500">' + App.money(r.grand) + ' · enjoy your pizza</span></div>';
+          App.emit('sale', r);
+          setTimeout(function () { self.reset(); }, 6000);
+        }).catch(function (e) { btn.disabled = false; btn.textContent = "I've paid"; App.toast(e.message || String(e), true); });
+      };
+    }
+  });
+  App.mock.api_selfCheckout = function (k, lines) { var t = 0; lines.forEach(function (l) { t += l.qty * 5.5; }); return { ok: true, ref: 'kiosk:1', total: t, tax: 0, grand: t, items: [] }; };
+})();
+</script>
+
+<!-- 20_sell.html -->
+<style>
+  .chips { display:flex; gap:6px; overflow-x:auto; padding:2px 0 8px; }
+  .chips .chip { white-space:nowrap; flex:none; }
+  .totals { display:flex; justify-content:space-between; font-size:14px; color:var(--mute); margin-bottom:8px; }
+  .totals b { color:var(--ink); }
+  .after { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .after button { flex:1; min-width:110px; }
+  .loy { display:flex; gap:8px; margin-bottom:8px; }
+  .loy input { flex:1; }
+</style>
+<script>
+// SELL — tap items into a basket, adjust a line, pick a payment, charge. Bundles, markdown mode, undo, receipts, Square.
+App.screen({
+  id: 'sell', title: 'Sell', order: 10,
+  render: function (root) {
+    var self = this;
+    self.cart = {}; self.pay = 'card'; self.markdown = false; self.basketPct = 0; self.last = null;
+    root.innerHTML =
+      '<div class="tiles">' +
+        '<div class="tile"><small>This week</small><b id="t-week">–</b></div>' +
+        '<div class="tile"><small>This month</small><b id="t-month">–</b></div>' +
+        '<div class="tile"><small>To reorder</small><b id="t-low">–</b></div>' +
+      '</div>' +
+      '<div class="chips" id="sell-recent"></div>' +
+      '<div class="chips" id="sell-bundles"></div>' +
+      '<div class="chips"><button class="chip" id="sell-markdown">Markdown mode</button><button class="chip" id="sell-basket">Basket % off</button></div>' +
+      '<input type="search" id="q-sell" placeholder="Find an item…" autocomplete="off">' +
+      '<div class="list" id="l-sell"></div>';
+    var cart = document.createElement('div'); cart.className = 'cart'; cart.id = 'cart'; cart.hidden = true;
+    cart.innerHTML =
+      '<div class="after" id="sell-after" hidden></div>' +
+      '<div class="loy"><input type="tel" id="sell-phone" placeholder="Loyalty phone (optional)" inputmode="tel"></div>' +
+      '<div class="pay" id="sell-pay"></div>' +
+      '<div class="totals"><span>Subtotal <b id="sell-sub">$0.00</b></span><span>Tax <b id="sell-tax">$0.00</b></span></div>' +
+      '<button class="btn" id="charge">Charge</button>';
+    document.body.appendChild(cart);
+    App.$('q-sell').oninput = function () { self.renderList(); };
+    App.$('sell-markdown').onclick = function () { self.markdown = !self.markdown; App.$('sell-markdown').classList.toggle('on', self.markdown); App.toast(self.markdown ? 'Markdown mode: tapped items get ' + (App.data ? App.data.markdownPct : 20) + '% off' : 'Markdown mode off'); };
+    App.$('sell-basket').onclick = function () { App.choose('Whole basket off', ['0%', '10%', '15%', '20%', '25%', '50%'], self.basketPct + '%', function (o) { self.basketPct = parseInt(o, 10) || 0; App.$('sell-basket').textContent = self.basketPct ? 'Basket ' + self.basketPct + '% off' : 'Basket % off'; App.$('sell-basket').classList.toggle('on', !!self.basketPct); self.renderList(); }); };
+    App.$('charge').onclick = function () { self.charge(); };
+    App.on('sale', function () { self.renderList(); });
+    App.on('recent', function () { self.renderRecent(); });
+    App.on('data', function () { self.renderRecent(); });
+  },
+  renderRecent: function () {
+    var self = this, box = App.$('sell-recent'); box.innerHTML = '';
+    var list = (App.recent ? App.recent() : []).map(function (k) { return App.items().filter(function (x) { return x.sku === k; })[0]; }).filter(Boolean);
+    box.hidden = !list.length;
+    list.forEach(function (i) { var c = document.createElement('button'); c.className = 'chip'; c.textContent = '↺ ' + i.item; c.onclick = function () { self.cart[i.sku] = (self.cart[i.sku] || 0) + 1; self.renderList(); }; box.appendChild(c); });
+  },
+  onData: function (d) {
+    var self = this;
+    App.$('t-week').textContent = App.money(d.week); App.$('t-month').textContent = App.money(d.month); App.$('t-low').textContent = d.lowCount;
+    var b = App.$('sell-bundles'); b.innerHTML = '';
+    (d.bundles || []).forEach(function (bd) {
+      var c = document.createElement('button'); c.className = 'chip'; c.textContent = bd.name + ' · ' + App.money(bd.price);
+      c.onclick = function () { self.cart['bundle:' + bd.name] = (self.cart['bundle:' + bd.name] || 0) + 1; self.renderList(); };
+      b.appendChild(c);
+    });
+    b.hidden = !(d.bundles && d.bundles.length);
+    var pays = ['card', 'cash', 'pizza pos', 'gift card']; if (d.squareAppId) pays.unshift('square');
+    var pay = App.$('sell-pay'); pay.innerHTML = '';
+    pays.forEach(function (p) { var bt = document.createElement('button'); bt.textContent = p === 'square' ? 'Charge with Square' : p === 'pizza pos' ? 'Rang on pizza POS' : p.charAt(0).toUpperCase() + p.slice(1); bt.dataset.p = p; bt.classList.toggle('on', p === self.pay); bt.onclick = function () { self.pay = p; pay.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === bt); }); self.renderList(); }; pay.appendChild(bt); });
+    self.renderList();
+  },
+  onShow: function () { App.$('cart').hidden = !Object.keys(this.cart).length; },
+  onHide: function () { App.$('cart').hidden = true; },
+  lineOf: function (key) {
+    var it = App.items().filter(function (x) { return x.sku === key; })[0];
+    if (it) return { key: key, sku: key, item: it.item, price: it.price, taxable: it.taxable, qty: this.cart[key], disc: (this.discs || {})[key] || 0, over: (this.overs || {})[key] };
+    var bd = ((App.data && App.data.bundles) || []).filter(function (b) { return 'bundle:' + b.name === key; })[0];
+    return bd ? { key: key, bundle: bd.name, item: bd.name + ' (bundle)', price: bd.price, taxable: true, qty: this.cart[key], disc: 0 } : null;
+  },
+  totals: function () {
+    var self = this, sub = 0, tax = 0, n = 0, rate = (App.data && App.data.taxRate) || 0;
+    Object.keys(self.cart).forEach(function (k) {
+      var l = self.lineOf(k); if (!l) return;
+      var price = l.over !== undefined ? l.over : l.price;
+      var net = l.qty * price - l.disc; net -= net * self.basketPct / 100;
+      sub += net; if (l.taxable) tax += net * rate / 100; n += l.qty;
+    });
+    return { sub: Math.round(sub * 100) / 100, tax: Math.round(tax * 100) / 100, n: n };
+  },
+  adjust: function (key) {
+    var self = this, l = self.lineOf(key); if (!l || l.bundle) return;
+    App.choose(l.item, ['10% off', '20% off', '$1 off', 'Set price', 'Remove'], null, function (o) {
+      self.discs = self.discs || {}; self.overs = self.overs || {};
+      var price = l.over !== undefined ? l.over : l.price;
+      if (o === '10% off') self.discs[key] = Math.round(l.qty * price * 10) / 100;
+      else if (o === '20% off') self.discs[key] = Math.round(l.qty * price * 20) / 100;
+      else if (o === '$1 off') self.discs[key] = Math.min(l.qty * price, (self.discs[key] || 0) + 1);
+      else if (o === 'Set price') { var v = prompt('Price for ' + l.item, String(price)); if (v !== null && !isNaN(parseFloat(v)) && parseFloat(v) >= 0) self.overs[key] = parseFloat(v); }
+      else if (o === 'Remove') { delete self.cart[key]; delete self.discs[key]; delete self.overs[key]; }
+      self.renderList();
+    });
+  },
+  renderList: function () {
+    var self = this, list = App.$('l-sell'); list.innerHTML = '';
+    var q = App.$('q-sell').value;
+    App.filtered(q).forEach(function (i) {
+      var d = App.rowEl(i, 'tappable');
+      var right = document.createElement('div');
+      if (self.cart[i.sku]) {
+        right.className = 'qty';
+        var l = self.lineOf(i.sku);
+        right.innerHTML = '<button data-d="-1">−</button><b>' + self.cart[i.sku] + '</b><button data-d="1">+</button>' + (l.disc || l.over !== undefined ? '<small class="muted">' + (l.over !== undefined ? App.money(l.over) : '') + (l.disc ? ' −' + App.money(l.disc) : '') + '</small>' : '');
+        right.querySelectorAll('button').forEach(function (b) { b.onclick = function (ev) { ev.stopPropagation(); self.cart[i.sku] = (self.cart[i.sku] || 0) + Number(b.dataset.d); if (self.cart[i.sku] <= 0) { delete self.cart[i.sku]; if (self.discs) delete self.discs[i.sku]; } self.renderList(); }; });
+        d.onclick = function () { self.adjust(i.sku); };
+      } else {
+        right.className = 'price'; right.textContent = App.money(i.price);
+        d.onclick = function () {
+          self.cart[i.sku] = (self.cart[i.sku] || 0) + 1;
+          if (self.markdown) { self.discs = self.discs || {}; self.discs[i.sku] = Math.round(self.cart[i.sku] * i.price * ((App.data && App.data.markdownPct) || 20)) / 100; }
+          self.renderList();
+        };
+      }
+      d.appendChild(right);
+      list.appendChild(d);
+    });
+    Object.keys(self.cart).forEach(function (k) {
+      if (k.indexOf('bundle:') !== 0) return;
+      var l = self.lineOf(k); if (!l) return;
+      var d = document.createElement('div'); d.className = 'row';
+      d.innerHTML = '<div class="name"><b></b><span>bundle</span></div><div class="qty"><button data-d="-1">−</button><b>' + l.qty + '</b><button data-d="1">+</button></div>';
+      d.querySelector('b').textContent = l.item;
+      d.querySelectorAll('.qty button').forEach(function (b) { b.onclick = function () { self.cart[k] += Number(b.dataset.d); if (self.cart[k] <= 0) delete self.cart[k]; self.renderList(); }; });
+      list.insertBefore(d, list.firstChild);
+    });
+    var t = self.totals();
+    App.$('cart').hidden = t.n === 0 || App.current !== 'sell';
+    App.$('sell-sub').textContent = App.money(t.sub); App.$('sell-tax').textContent = App.money(t.tax);
+    App.$('charge').textContent = (self.pay === 'square' ? 'Charge with Square ' : 'Charge ') + App.money(t.sub + t.tax) + ' · ' + t.n + (t.n === 1 ? ' item' : ' items');
+    App.$('sell-after').hidden = true;
+  },
+  lines: function () {
+    var self = this;
+    return Object.keys(self.cart).map(function (k) { var l = self.lineOf(k); if (!l) return null; return l.bundle ? { bundle: l.bundle, qty: l.qty } : { sku: l.sku, qty: l.qty, price: l.over !== undefined ? l.over : l.price, discount: l.disc || 0 }; }).filter(Boolean);
+  },
+  charge: function () {
+    var self = this;
+    if (!App.needPin()) return;
+    var lines = self.lines(); if (!lines.length) return;
+    var opts = { staff: App.staff, discountPct: self.basketPct };
+    var btn = App.$('charge'); btn.disabled = true; btn.textContent = 'Saving…';
+    var reset = function () { btn.disabled = false; self.renderList(); };
+    if (self.pay === 'square') {
+      App.call('api_squareStart', [App.pin, lines, opts]).then(function (r) {
+        reset();
+        var link = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? r.ios : r.android;
+        try { localStorage.setItem('shop-square-pending', JSON.stringify({ token: r.token, lines: lines, when: Date.now() })); } catch (e) {}
+        window.location.href = link;
+        App.toast('Opening Square for ' + App.money(r.cents / 100) + '. Come back here when it is done.');
+        self.cart = {}; self.discs = {}; self.overs = {}; self.basketPct = 0; self.renderList();
+      }).catch(function (e) { reset(); App.pinFailed(e); });
+      return;
+    }
+    var finish = function (giftCode) {
+      App.call('api_sell', [App.pin, lines, self.pay, opts]).then(function (r) {
+        reset();
+        lines.forEach(function (l) { if (!l.sku) return; var it = App.items().filter(function (x) { return x.sku === l.sku; })[0]; if (it) { it.onHand -= l.qty; it.low = it.reorder > 0 && it.onHand <= it.reorder; } });
+        App.data.week += r.total; App.data.month += r.total; App.$('t-week').textContent = App.money(App.data.week); App.$('t-month').textContent = App.money(App.data.month);
+        self.cart = {}; self.discs = {}; self.overs = {}; self.basketPct = 0; App.$('sell-basket').textContent = 'Basket % off'; App.$('sell-basket').classList.remove('on');
+        self.last = r; self.renderList(); self.afterSale(r);
+        if (giftCode) App.call('api_redeemGiftCard', [App.pin, giftCode, r.grand, r.ref]).then(function (g) { App.toast('Gift card balance now ' + App.money(g.balance)); }).catch(function (e) { App.toast(e.message || String(e), true); });
+        var phone = App.$('sell-phone').value.replace(/\D/g, '');
+        if (phone) App.call('api_stamp', [App.pin, phone, r.ref]).then(function (s) { App.$('sell-phone').value = ''; App.toast(s.rewardReady ? 'Reward ready for this customer!' : 'Stamp added: ' + s.stamps); }).catch(function (e) { App.toast(e.message || String(e), true); });
+        App.toast('Sold ' + App.money(r.grand) + (r.tax ? ' incl. ' + App.money(r.tax) + ' tax' : ''), false, { label: 'Undo', fn: function () { self.undo(r.ref); } });
+        (r.warnings || []).forEach(function (w) { setTimeout(function () { App.toast(w, true); }, 6200); });
+        App.emit('sale', r);
+      }).catch(function (e) { reset(); App.pinFailed(e); });
+    };
+    if (self.pay === 'gift card') {
+      var code = prompt('Gift card code'); if (!code) { reset(); return; }
+      App.call('api_giftCardBalance', [code.trim()]).then(function (g) {
+        var t = self.totals();
+        if (g.balance < t.sub + t.tax) { reset(); App.toast('Card balance is ' + App.money(g.balance) + ', not enough for ' + App.money(t.sub + t.tax), true); return; }
+        finish(g.code);
+      }).catch(function (e) { reset(); App.toast(e.message || String(e), true); });
+      return;
+    }
+    finish(null);
+  },
+  undo: function (ref) {
+    App.call('api_void', [App.pin, ref]).then(function (v) { App.toast('Undone: ' + v.lines + (v.lines === 1 ? ' line' : ' lines') + ' removed'); App.load(); }).catch(function (e) { App.pinFailed(e); });
+  },
+  afterSale: function (r) {
+    var self = this, box = App.$('sell-after'); box.innerHTML = ''; box.hidden = false;
+    var mk = function (label, fn) { var b = document.createElement('button'); b.className = 'btn ghost sm'; b.textContent = label; b.onclick = fn; box.appendChild(b); };
+    mk('Email receipt', function () { var em = prompt('Email address'); if (em) App.call('api_receipt', [App.pin, r.ref, { email: em }]).then(function () { App.toast('Receipt sent'); }).catch(function (e) { App.toast(e.message || String(e), true); }); });
+    mk('Gift receipt', function () { var em = prompt('Email address for the gift receipt'); if (em) App.call('api_receipt', [App.pin, r.ref, { email: em, gift: true }]).then(function () { App.toast('Gift receipt sent'); }).catch(function (e) { App.toast(e.message || String(e), true); }); });
+    if (navigator.share) mk('Share', function () { App.call('api_receipt', [App.pin, r.ref, {}]).then(function (x) { navigator.share({ title: 'Receipt', text: x.text, url: x.url || undefined }).catch(function () {}); }).catch(function (e) { App.toast(e.message || String(e), true); }); });
+    App.$('cart').hidden = false;
+  }
+});
+</script>
+
+<!-- 22_refund.html -->
+<script>
+// REFUND — pick the item, how many, why. Stock comes back and the money goes negative on the Sales tab.
+App.screen({
+  id: 'refund', title: 'Refund', order: 15,
+  render: function (root) {
+    var self = this; self.picked = null; self.reason = 'changed mind';
+    root.innerHTML =
+      '<p class="muted">Refunds put the item back on the shelf and take the money off the day. Undo (within 30 minutes of a sale) lives on the toast after a sale.</p>' +
+      '<div class="chips" id="rf-reasons"></div>' +
+      '<input type="search" id="q-refund" placeholder="Find the item…" autocomplete="off">' +
+      '<div class="list" id="l-refund"></div>';
+    var chips = App.$('rf-reasons');
+    ['changed mind', 'damaged', 'wrong item', 'other'].forEach(function (r) {
+      var c = document.createElement('button'); c.className = 'chip' + (r === self.reason ? ' on' : ''); c.textContent = r;
+      c.onclick = function () { self.reason = r; chips.querySelectorAll('.chip').forEach(function (x) { x.classList.toggle('on', x === c); }); };
+      chips.appendChild(c);
+    });
+    App.$('q-refund').oninput = function () { self.renderList(); };
+  },
+  onData: function () { this.renderList(); },
+  renderList: function () {
+    var self = this, list = App.$('l-refund'); list.innerHTML = '';
+    App.filtered(App.$('q-refund').value).forEach(function (i) {
+      var d = App.rowEl(i);
+      var inp = document.createElement('input'); inp.type = 'number'; inp.className = 'count-in'; inp.placeholder = '1'; inp.inputMode = 'numeric'; inp.min = '1';
+      var b = document.createElement('button'); b.className = 'btn sm'; b.textContent = 'Refund';
+      b.onclick = function () {
+        var qty = Number(inp.value || 1); if (!(qty > 0)) return App.toast('How many?', true);
+        if (!App.needPin()) return;
+        var reason = self.reason === 'other' ? (prompt('Reason') || 'other') : self.reason;
+        if (!confirm('Refund ' + qty + ' × ' + i.item + ' (' + App.money(qty * i.price) + ')?')) return;
+        b.disabled = true;
+        App.call('api_refund', [App.pin, { lines: [{ sku: i.sku, qty: qty }], reason: reason, staff: App.staff }]).then(function (r) {
+          b.disabled = false; inp.value = ''; i.onHand += qty; i.low = i.reorder > 0 && i.onHand <= i.reorder;
+          App.toast('Refunded ' + App.money(-r.grand)); self.renderList(); App.emit('refund', r);
+        }).catch(function (e) { b.disabled = false; App.pinFailed(e); });
+      };
+      d.appendChild(inp); d.appendChild(b);
+      list.appendChild(d);
+    });
+  }
+});
+App.mock.api_refund = function (p, o) { var t = 0; o.lines.forEach(function (l) { t -= l.qty * 5; }); return { ref: 'refund:1', lines: o.lines, total: t, tax: 0, grand: t, reason: o.reason }; };
+App.mock.api_void = function () { return { ref: 'app:1', lines: 1, total: 5 }; };
+App.mock.api_receipt = function (p, ref, o) { return { sent: !!(o && o.email), url: '', text: 'Receipt ' + ref, gift: !!(o && o.gift) }; };
+App.mock.api_squareStart = function () { return { token: 'tok', cents: 1550, ios: 'square-commerce-v1://payment/create?data=%7B%7D', android: 'intent:#Intent;end' }; };
+App.mock.api_giftCardBalance = function (code) { return { code: code, balance: 25, status: 'Active' }; };
+App.mock.api_redeemGiftCard = function (p, code, amt) { return { balance: Math.max(0, 25 - amt) }; };
+App.mock.api_stamp = function () { return { stamps: 3, rewardReady: false }; };
+</script>
+
+<!-- 30_count.html -->
+<style>
+  .cycle { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:10px; }
+  .cycle h3 { margin:0 0 4px; font-size:15px; display:flex; justify-content:space-between; }
+  .cycle h3 span { color:var(--mute); font-weight:500; font-size:13px; }
+  .cycle .row { border:0; border-top:1px solid var(--line); border-radius:0; padding:8px 0; }
+  .cycle .done { color:var(--ok); font-weight:700; }
+</style>
+<script>
+// COUNT — today's few items first (the daily habit), then the whole shelf. The difference is logged as an adjustment.
+App.screen({
+  id: 'count', title: 'Count', order: 20,
+  render: function (root) {
+    root.innerHTML =
+      '<div class="cycle" id="cycle" hidden></div>' +
+      '<p class="muted">Type what you actually see, tap Save. The difference is logged so nothing goes missing quietly.</p>' +
+      '<div class="pin"><input type="text" id="who" placeholder="Your name"></div>' +
+      '<input type="search" id="q-count" placeholder="Find an item…" autocomplete="off">' +
+      '<div class="list" id="l-count"></div>';
+    var self = this;
+    App.$('q-count').oninput = function () { self.renderList(); };
+    App.on('staff', function (name) { if (name && !App.$('who').value) App.$('who').value = name; });
+  },
+  onData: function (d) { if (App.staff && !App.$('who').value) App.$('who').value = App.staff; this.renderCycle(d.cycle); this.renderList(); },
+  who: function () { return App.$('who').value || App.staff || ''; },
+  saveCount: function (i, inp, b, after) {
+    var self = this;
+    if (inp.value === '') return App.toast('Type the number you counted', true);
+    if (!App.needPin()) return;
+    b.disabled = true;
+    App.call('api_count', [App.pin, i.sku, Number(inp.value), self.who()]).then(function (r) {
+      b.disabled = false; i.onHand = r.counted; i.low = i.reorder > 0 && i.onHand <= i.reorder; inp.value = '';
+      var it = App.items().filter(function (x) { return x.sku === i.sku; })[0]; if (it) { it.onHand = r.counted; it.low = i.low; }
+      App.toast(r.item + ': ' + (r.adjustment === 0 ? 'matches' : (r.adjustment > 0 ? '+' : '') + r.adjustment + ' adjusted') + (r.squarePushed ? ' · sent to Square' : ''));
+      App.emit('count', r); if (after) after(r); self.renderList();
+    }).catch(function (e) { b.disabled = false; App.pinFailed(e); });
+  },
+  renderCycle: function (cycle) {
+    var self = this, box = App.$('cycle');
+    if (!cycle || (!cycle.items.length && !cycle.done.length)) { box.hidden = true; return; }
+    box.hidden = false; box.innerHTML = '';
+    var doneN = cycle.done.length, total = cycle.total;
+    var h = document.createElement('h3'); h.innerHTML = '<b></b><span></span>';
+    h.querySelector('b').textContent = "Today's " + total; h.querySelector('span').textContent = Math.min(doneN, total) + ' of ' + total + ' done';
+    box.appendChild(h);
+    if (!cycle.items.length) { var p = document.createElement('div'); p.className = 'done'; p.textContent = 'All counted for today. Nice.'; box.appendChild(p); return; }
+    cycle.items.forEach(function (c) {
+      var d = document.createElement('div'); d.className = 'row';
+      d.innerHTML = '<div class="name"><b></b><span></span></div>';
+      d.querySelector('b').textContent = c.item; d.querySelector('span').textContent = 'sheet says ' + c.onHand + ' · ' + c.reason;
+      var inp = document.createElement('input'); inp.type = 'number'; inp.className = 'count-in'; inp.placeholder = String(c.onHand); inp.inputMode = 'numeric';
+      var b = document.createElement('button'); b.className = 'btn sm'; b.textContent = 'Save';
+      var item = App.items().filter(function (x) { return x.sku === c.sku; })[0] || { sku: c.sku, onHand: c.onHand, reorder: 0 };
+      b.onclick = function () { self.saveCount(item, inp, b, function () { cycle.items = cycle.items.filter(function (x) { return x.sku !== c.sku; }); cycle.done.push(c.sku); self.renderCycle(cycle); }); };
+      d.appendChild(inp); d.appendChild(b); box.appendChild(d);
+    });
+  },
+  renderList: function () {
+    var self = this, list = App.$('l-count'); list.innerHTML = '';
+    App.filtered(App.$('q-count').value).forEach(function (i) {
+      var d = App.rowEl(i);
+      if (i.lastCounted) d.querySelector('span').textContent += ' · counted ' + i.lastCounted;
+      var inp = document.createElement('input'); inp.type = 'number'; inp.className = 'count-in'; inp.placeholder = String(i.onHand); inp.inputMode = 'numeric';
+      var b = document.createElement('button'); b.className = 'btn sm'; b.textContent = 'Save';
+      b.onclick = function () { self.saveCount(i, inp, b); };
+      d.appendChild(inp); d.appendChild(b);
+      list.appendChild(d);
+    });
+  }
+});
+(function () {
+  var base = App.mock.api_load;
+  App.mock.api_load = function () { var d = base(); d.cycle = { date: '2026-09-08', total: 5, remaining: 2, done: ['EX-001', 'EX-006', 'EX-004'], items: [{ sku: 'EX-003', item: 'Whoopie pie twin pack', onHand: 9, reason: 'on the reorder list, $21.60 on the shelf' }, { sku: 'EX-007', item: 'Lobster plush 8in', onHand: 3, reason: 'never counted' }] }; return d; };
+})();
+</script>
+
+<!-- 35_cash.html -->
+<script>
+// CASH — open the drawer with a float, drop cash to the safe, close and count. Red or green shows the difference.
+App.screen({
+  id: 'cash', title: 'Cash', order: 50,
+  render: function (root) {
+    var self = this;
+    root.innerHTML = '<div id="cash-state" class="tile" style="margin-bottom:10px"></div><div id="cash-actions" class="chips"></div><h3 style="margin:16px 0 6px">Last 7 days</h3><div class="list" id="cash-hist"></div>';
+  },
+  onShow: function () { this.refresh(); },
+  refresh: function () {
+    var self = this;
+    App.call('api_cashStatus').then(function (st) {
+      var box = App.$('cash-state');
+      box.innerHTML = st.open
+        ? '<small>Drawer open since ' + st.since + (st.who ? ' · ' + st.who : '') + '</small><b>' + App.money(st.expected) + ' expected</b><div class="muted">float ' + App.money(st.float) + ' + cash sales ' + App.money(st.cashSales) + ' − drops ' + App.money(st.drops) + '</div>'
+        : '<small>Drawer closed</small><b>Open it with the float to start the day</b>';
+      var act = App.$('cash-actions'); act.innerHTML = '';
+      var mk = function (label, fn) { var b = document.createElement('button'); b.className = 'btn sm'; b.textContent = label; b.onclick = fn; act.appendChild(b); };
+      var ask = function (q, dflt) { var v = prompt(q, dflt === undefined ? '' : dflt); return v === null ? null : Number(v); };
+      if (!st.open) mk('Open drawer', function () { var f = ask('Starting float $', '100'); if (f === null) return; if (!App.needPin()) return; App.call('api_cashOpen', [App.pin, App.staff, f]).then(function () { App.toast('Drawer open with ' + App.money(f)); self.refresh(); }).catch(App.pinFailed); });
+      else {
+        mk('Drop to safe', function () { var a = ask('Amount moved to the safe $'); if (a === null) return; if (!App.needPin()) return; App.call('api_cashDrop', [App.pin, App.staff, a, '']).then(function (r) { App.toast('Dropped ' + App.money(a) + ', ' + App.money(r.expected) + ' should be left'); self.refresh(); }).catch(App.pinFailed); });
+        mk('Close and count', function () { var c = ask('Cash counted in the drawer $'); if (c === null) return; if (!App.needPin()) return; App.call('api_cashClose', [App.pin, App.staff, c, '']).then(function (r) { App.toast((r.difference === 0 ? 'Drawer matches' : (r.difference > 0 ? 'Over by ' : 'Short by ') + App.money(Math.abs(r.difference))), r.difference < 0); self.refresh(); }).catch(App.pinFailed); });
+      }
+      var hist = App.$('cash-hist'); hist.innerHTML = '';
+      if (!st.history.length) { hist.innerHTML = '<p class="muted">No closes yet.</p>'; }
+      st.history.forEach(function (h) {
+        var d = document.createElement('div'); d.className = 'row'; d.innerHTML = '<div class="name"><b></b><span></span></div><div class="price"></div>';
+        d.querySelector('b').textContent = h.when + (h.who ? ' · ' + h.who : ''); d.querySelector('span').textContent = 'counted ' + App.money(h.counted) + ' · expected ' + App.money(h.expected);
+        var p = d.querySelector('.price'); p.textContent = (h.difference >= 0 ? '+' : '−') + App.money(Math.abs(h.difference)); p.style.color = h.difference < 0 ? 'var(--accent)' : 'var(--ok)';
+        hist.appendChild(d);
+      });
+    }).catch(function (e) { App.toast(e.message || String(e), true); });
+  }
+});
+App.mock.api_cashStatus = function () { return { open: true, since: '2026-09-08 11:02', float: 100, who: 'Jess', cashSales: 86.5, drops: 50, expected: 136.5, history: [{ when: '2026-09-07', counted: 210, expected: 213.21, difference: -3.21, who: 'Jess' }] }; };
+App.mock.api_cashOpen = function (p, w, f) { return { type: 'open', float: f }; };
+App.mock.api_cashDrop = function (p, w, a) { return { type: 'drop', amount: a, expected: 136.5 - a }; };
+App.mock.api_cashClose = function (p, w, c) { return { type: 'close', counted: c, expected: 136.5, difference: Math.round((c - 136.5) * 100) / 100 }; };
+</script>
+
+<!-- 40_receive.html -->
+<script>
+// RECEIVE — open purchase orders first ("Receive all", adjust a line for a short box), then the free-form list.
+App.screen({
+  id: 'receive', title: 'Receive', order: 30,
+  render: function (root) {
+    root.innerHTML =
+      '<div id="po-list"></div>' +
+      '<p class="muted">Something arrived without an order? Tap the item, enter how many came in.</p>' +
+      '<input type="search" id="q-recv" placeholder="Find an item…" autocomplete="off">' +
+      '<div class="list" id="l-recv"></div>';
+    var self = this;
+    App.$('q-recv').oninput = function () { self.renderList(); };
+    App.on('order', function () { self.renderOrders(); });
+  },
+  onData: function () { this.renderList(); },
+  onShow: function () { this.renderOrders(); },
+  renderOrders: function () {
+    var self = this, box = App.$('po-list'); box.innerHTML = '';
+    App.call('api_openOrders').then(function (pos) {
+      if (!pos.length) return;
+      var h = document.createElement('h3'); h.textContent = 'On the way'; h.style.margin = '4px 0 8px'; box.appendChild(h);
+      pos.forEach(function (p) {
+        var g = document.createElement('div'); g.className = 'row'; g.style.flexDirection = 'column'; g.style.alignItems = 'stretch';
+        var head = document.createElement('div'); head.innerHTML = '<b></b><div class="muted"></div>';
+        head.querySelector('b').textContent = p.supplier + ' · ' + p.po; head.querySelector('div').textContent = 'ordered ' + p.date + (p.expected ? ' · expected ' + p.expected : '') + ' · ' + App.money(p.cost);
+        g.appendChild(head);
+        var inputs = {};
+        p.lines.forEach(function (l) {
+          if (!l.remaining) return;
+          var r = document.createElement('div'); r.style.display = 'flex'; r.style.alignItems = 'center'; r.style.gap = '8px'; r.style.marginTop = '6px';
+          var nm = document.createElement('span'); nm.style.flex = '1'; nm.textContent = l.item + ' (' + l.remaining + ' to come)';
+          var inp = document.createElement('input'); inp.type = 'number'; inp.className = 'count-in'; inp.value = l.remaining; inp.inputMode = 'numeric'; inp.min = '0';
+          inputs[l.sku] = inp; r.appendChild(nm); r.appendChild(inp); g.appendChild(r);
+        });
+        var b = document.createElement('button'); b.className = 'btn sm'; b.style.marginTop = '8px'; b.textContent = 'Receive';
+        b.onclick = function () {
+          if (!App.needPin()) return;
+          b.disabled = true;
+          var lines = Object.keys(inputs).map(function (sku) { return { sku: sku, qty: Number(inputs[sku].value || 0) }; });
+          App.call('api_receiveOrder', [App.pin, p.po, lines]).then(function (r) {
+            App.toast(r.complete ? p.po + ' received in full' : p.po + ' received, still short on ' + (p.lines.length - r.received.length) + ' line(s)');
+            App.emit('receipt', r); App.load(); self.renderOrders();
+          }).catch(function (e) { b.disabled = false; App.pinFailed(e); });
+        };
+        g.appendChild(b); box.appendChild(g);
+      });
+    }).catch(function (e) { App.toast(e.message || String(e), true); });
+  },
+  renderList: function () {
+    var self = this, list = App.$('l-recv'); list.innerHTML = '';
+    App.filtered(App.$('q-recv').value).forEach(function (i) {
+      var d = App.rowEl(i);
+      var inp = document.createElement('input'); inp.type = 'number'; inp.className = 'count-in'; inp.placeholder = 'qty'; inp.inputMode = 'numeric';
+      var b = document.createElement('button'); b.className = 'btn sm'; b.textContent = 'Add';
+      b.onclick = function () {
+        if (!(Number(inp.value) > 0)) return App.toast('How many came in?', true);
+        if (!App.needPin()) return;
+        b.disabled = true;
+        App.call('api_receive', [App.pin, i.sku, Number(inp.value)]).then(function (r) {
+          b.disabled = false; i.onHand += Number(inp.value); i.low = i.reorder > 0 && i.onHand <= i.reorder; inp.value = '';
+          App.toast('Received ' + r.item); self.renderList(); App.emit('receipt', r);
+        }).catch(function (e) { b.disabled = false; App.pinFailed(e); });
+      };
+      d.appendChild(inp); d.appendChild(b);
+      list.appendChild(d);
+    });
+  }
+});
+App.mock.api_openOrders = function () { return [{ po: 'PO-20260905-1', supplier: 'Cranberry Island Kitchen', date: '2026-09-05', expected: '2026-09-09', cost: 96, lines: [{ sku: 'EX-003', item: 'Whoopie pie twin pack', ordered: 40, received: 0, remaining: 40, unitCost: 2.4, note: '' }] }]; };
+App.mock.api_receiveOrder = function (p, po, lines) { return { po: po, received: lines, complete: true }; };
+</script>
+
+<!-- 45_intake.html -->
+<style>
+  .piece { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; display:grid; gap:6px; margin-top:8px; }
+  .piece .two { display:grid; grid-template-columns:2fr 1fr; gap:6px; }
+  .piece .three { display:grid; grid-template-columns:1fr 1fr auto; gap:6px; align-items:center; }
+  .piece input[type=file] { font-size:13px; }
+</style>
+<script>
+// INTAKE — a maker drops off pieces: pick the maker, list what came in (existing or new), everything lands in stock.
+App.screen({
+  id: 'intake', title: 'Intake', order: 35,
+  render: function (root) {
+    var self = this; self.pieces = [];
+    root.innerHTML =
+      '<p class="muted">A maker brought pieces? Pick them, list what came in. New pieces are added to the shelf on consignment and the maker gets an emailed receipt.</p>' +
+      '<div class="piece"><div class="two"><input type="text" id="in-maker" placeholder="Maker" list="in-makers"><button class="chip" id="in-pick">Pick</button></div><datalist id="in-makers"></datalist>' +
+      '<div class="two"><input type="email" id="in-email" placeholder="Email (for the receipt)"><input type="number" id="in-pct" placeholder="Their %" inputmode="numeric" min="0" max="100"></div></div>' +
+      '<div id="in-pieces"></div>' +
+      '<div class="chips" style="margin-top:8px"><button class="chip" id="in-add-existing">+ Existing item</button><button class="chip" id="in-add-new">+ New piece</button></div>' +
+      '<button class="btn" id="in-save" style="margin-top:10px">Log intake</button>' +
+      '<div id="in-expiring"></div>';
+    App.$('in-pick').onclick = function () { App.call('api_makers').then(function (names) { App.choose('Which maker?', names.length ? names : ['(none yet — type a name)'], App.$('in-maker').value, function (n) { if (n[0] !== '(') App.$('in-maker').value = n; }); }).catch(function (e) { App.toast(e.message || String(e), true); }); };
+    App.$('in-add-existing').onclick = function () { self.pieces.push({ kind: 'existing' }); self.renderPieces(); };
+    App.$('in-add-new').onclick = function () { self.pieces.push({ kind: 'new' }); self.renderPieces(); };
+    App.$('in-save').onclick = function () { self.save(); };
+  },
+  onData: function (d) {
+    var dl = App.$('in-makers'); dl.innerHTML = '';
+    var seen = {};
+    (d.items || []).forEach(function (i) { if (i.consign && i.vendor && !seen[i.vendor]) { seen[i.vendor] = 1; var o = document.createElement('option'); o.value = i.vendor; dl.appendChild(o); } });
+    var ex = App.$('in-expiring'); ex.innerHTML = '';
+    if (d.expiring && d.expiring.length) {
+      var h = document.createElement('h3'); h.textContent = 'Best-by dates coming up'; h.style.margin = '18px 0 6px'; ex.appendChild(h);
+      d.expiring.forEach(function (x) { var r = document.createElement('div'); r.className = 'row'; r.innerHTML = '<div class="name"><b></b><span></span></div>'; r.querySelector('b').textContent = x.item; r.querySelector('span').textContent = (x.daysLeft < 0 ? 'expired ' : x.daysLeft + ' days · ') + x.onHand + ' on hand · ' + x.markdown; ex.appendChild(r); });
+    }
+  },
+  renderPieces: function () {
+    var self = this, box = App.$('in-pieces'); box.innerHTML = '';
+    self.pieces.forEach(function (p, idx) {
+      var d = document.createElement('div'); d.className = 'piece';
+      if (p.kind === 'existing') {
+        d.innerHTML = '<div class="three"><input type="text" placeholder="Item name or SKU" list="in-items"><input type="number" placeholder="Qty" inputmode="numeric" min="1"><button class="chip">✕</button></div><datalist id="in-items"></datalist>';
+        var dl = d.querySelector('datalist'); App.items().forEach(function (i) { var o = document.createElement('option'); o.value = i.item; dl.appendChild(o); });
+        var ins = d.querySelectorAll('input'); ins[0].value = p.name || ''; ins[1].value = p.qty || '';
+        ins[0].oninput = function () { p.name = ins[0].value; }; ins[1].oninput = function () { p.qty = ins[1].value; };
+      } else {
+        d.innerHTML = '<div class="two"><input type="text" placeholder="New piece name"><input type="number" placeholder="Price $" inputmode="decimal" step="0.5" min="0"></div>' +
+          '<div class="three"><select></select><input type="number" placeholder="Qty" inputmode="numeric" min="1"><button class="chip">✕</button></div>' +
+          '<input type="file" accept="image/*" capture="environment">';
+        var sel = d.querySelector('select'); ['Local crafts', 'Maine-made food', 'Apparel & hats', 'Kids & toys', 'Home & kitchen', 'Candles & soap', 'Cards & stationery', 'Other'].forEach(function (c) { var o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+        var ins2 = d.querySelectorAll('input');
+        ins2[0].value = p.name || ''; ins2[1].value = p.price || ''; ins2[2].value = p.qty || ''; sel.value = p.cat || 'Local crafts';
+        ins2[0].oninput = function () { p.name = ins2[0].value; }; ins2[1].oninput = function () { p.price = ins2[1].value; }; ins2[2].oninput = function () { p.qty = ins2[2].value; }; sel.onchange = function () { p.cat = sel.value; };
+        ins2[3].onchange = function () { p.file = ins2[3].files[0]; };
+      }
+      d.querySelector('button.chip').onclick = function () { self.pieces.splice(idx, 1); self.renderPieces(); };
+      box.appendChild(d);
+    });
+  },
+  shrinkPhoto: function (file) {
+    return new Promise(function (resolve) {
+      var img = new Image(); var url = URL.createObjectURL(file);
+      img.onload = function () { var s = Math.min(1, 800 / Math.max(img.width, img.height)); var c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); resolve(c.toDataURL('image/jpeg', 0.82).split(',')[1]); };
+      img.onerror = function () { resolve(null); };
+      img.src = url;
+    });
+  },
+  save: function () {
+    var self = this;
+    var maker = App.$('in-maker').value.trim(); if (!maker) return App.toast('Whose pieces are these?', true);
+    if (!self.pieces.length) return App.toast('Add at least one piece', true);
+    var pieces = [];
+    for (var i = 0; i < self.pieces.length; i++) {
+      var p = self.pieces[i];
+      if (p.kind === 'existing') { var it = App.items().filter(function (x) { return x.item === p.name || x.sku === p.name; })[0]; if (!it) return App.toast('Which item is "' + (p.name || '') + '"?', true); pieces.push({ sku: it.sku, qty: Number(p.qty) }); }
+      else pieces.push({ name: p.name, price: Number(p.price), cat: p.cat || 'Local crafts', qty: Number(p.qty) });
+    }
+    if (!App.needPin()) return;
+    var b = App.$('in-save'); b.disabled = true; b.textContent = 'Saving…';
+    App.call('api_intake', [App.pin, { maker: maker, email: App.$('in-email').value, pct: App.$('in-pct').value ? Number(App.$('in-pct').value) : undefined, pieces: pieces }]).then(function (r) {
+      b.disabled = false; b.textContent = 'Log intake';
+      App.toast('Logged ' + r.lines.length + ' piece(s) from ' + r.maker + (r.receiptSent ? ' · receipt emailed' : ''));
+      var uploads = [];
+      self.pieces.forEach(function (p, idx) { if (p.kind === 'new' && p.file && r.skus[idx]) uploads.push(self.shrinkPhoto(p.file).then(function (b64) { if (b64) return App.call('api_uploadPhoto', [App.pin, r.skus[idx], b64, 'image/jpeg']); })); });
+      Promise.all(uploads).then(function () { if (uploads.length) App.toast('Photos saved'); App.load(); }).catch(function (e) { App.toast('Photo upload failed: ' + (e.message || e), true); App.load(); });
+      self.pieces = []; self.renderPieces(); App.$('in-email').value = ''; App.$('in-pct').value = '';
+      App.emit('receipt', r);
+    }).catch(function (e) { b.disabled = false; b.textContent = 'Log intake'; App.pinFailed(e); });
+  }
+});
+App.mock.api_makers = function () { return ['Tides & Threads (Sarah)', 'Maine Balsam Fill']; };
+App.mock.api_intake = function (p, o) { return { maker: o.maker, pct: 60, skus: o.pieces.map(function (x, i) { return x.sku || 'CN-TT-' + (i + 1); }), lines: o.pieces.map(function (x) { return { sku: x.sku || 'CN', item: x.name || x.sku, qty: x.qty, price: x.price || 0 }; }), receiptSent: !!o.email }; };
+App.mock.api_uploadPhoto = function () { return { url: '' }; };
+</script>
+
+<!-- 50_reorder.html -->
+<style>
+  .group { margin-top:14px; }
+  .group h3 { margin:0 0 6px; font-size:15px; display:flex; justify-content:space-between; align-items:center; }
+  .group h3 span { color:var(--mute); font-weight:500; font-size:13px; }
+</style>
+<script>
+// REORDER — what is low, grouped by supplier; one tap turns a group into a purchase order. Amazon keeps its cart link.
+App.screen({
+  id: 'reorder', title: 'Reorder', order: 40,
+  render: function (root) { root.innerHTML = '<div id="reorder-top"></div><div id="l-reorder"></div>'; },
+  onShow: function () { this.refresh(); },
+  refresh: function () {
+    var self = this;
+    App.$('reorder-top').innerHTML = '<p class="muted">Loading reorder list…</p>';
+    App.$('l-reorder').innerHTML = '';
+    App.call('api_reorder').then(function (R) {
+      var top = App.$('reorder-top'); top.innerHTML = '';
+      if (R.amazonCartUrl) {
+        var a = document.createElement('a'); a.className = 'btn'; a.style.textAlign = 'center'; a.style.textDecoration = 'none'; a.href = R.amazonCartUrl; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = 'Add all ' + R.amazonCount + ' Amazon items to cart'; top.appendChild(a);
+      }
+      var p = document.createElement('p'); p.className = 'muted';
+      p.textContent = R.rows.length ? 'Tap "Mark ordered" once you have placed the order, so the app knows it is on the way.' : 'Nothing to reorder right now.';
+      top.appendChild(p);
+      var groups = {};
+      R.rows.forEach(function (r) { var k = r.consign ? r.supplier : (r.vendor || r.source || 'Other'); (groups[k] = groups[k] || []).push(r); });
+      var list = App.$('l-reorder');
+      Object.keys(groups).forEach(function (k) {
+        var rows = groups[k];
+        var g = document.createElement('div'); g.className = 'group';
+        var h = document.createElement('h3'); h.innerHTML = '<b></b><span></span>'; h.querySelector('b').textContent = k;
+        h.querySelector('span').textContent = rows.length + (rows.length === 1 ? ' item · ' : ' items · ') + App.money(rows.reduce(function (a, r) { return a + r.cost; }, 0));
+        g.appendChild(h);
+        rows.forEach(function (r) {
+          var d = document.createElement('div'); d.className = 'row';
+          d.innerHTML = '<div class="name"><b></b><span></span></div><div class="price"></div>';
+          d.querySelector('b').textContent = r.item;
+          d.querySelector('span').textContent = r.onHand + ' left' + (r.onOrder ? ' · ' + r.onOrder + ' on order' : '') + ' · ' + (r.weeks === null ? 'no sales yet' : Math.round(r.weeks * 10) / 10 + ' wk cover');
+          d.querySelector('.price').textContent = 'order ' + r.qty;
+          if (r.link) { var l = document.createElement('a'); l.className = 'link'; l.href = r.link; l.target = '_blank'; l.rel = 'noopener'; l.textContent = 'open'; d.appendChild(l); }
+          g.appendChild(d);
+        });
+        if (!rows[0].consign) {
+          var b = document.createElement('button'); b.className = 'btn ghost sm'; b.style.marginTop = '6px'; b.textContent = 'Mark ordered';
+          b.onclick = function () {
+            if (!App.needPin()) return;
+            b.disabled = true;
+            App.call('api_createOrders', [App.pin, rows.map(function (r) { return { sku: r.sku, qty: r.qty, unitCost: r.unitCost }; })]).then(function (o) {
+              App.toast('Created ' + o.pos.map(function (p) { return p.po; }).join(', ') + ' · expected ' + o.pos[0].expected);
+              App.emit('order', o); self.refresh(); App.load();
+            }).catch(function (e) { b.disabled = false; App.pinFailed(e); });
+          };
+          g.appendChild(b);
+        } else {
+          var m = document.createElement('button'); m.className = 'btn ghost sm'; m.style.marginTop = '6px'; m.textContent = 'Message text';
+          m.onclick = function () { App.call('api_makerEmailText', [rows.map(function (r) { return r.sku; })]).then(function (t) { var x = t[0]; if (!x) return; if (navigator.share) navigator.share({ title: x.subject, text: x.body }).catch(function () {}); else { prompt('Copy this', x.body); } }).catch(function (e) { App.toast(e.message || String(e), true); }); };
+          g.appendChild(m);
+        }
+        list.appendChild(g);
+      });
+    }).catch(function (e) { App.toast(e.message || String(e), true); });
+  }
+});
+App.mock.api_createOrders = function (p, lines) { return { pos: [{ po: 'PO-20260908-1', supplier: 'Amazon', lines: lines, cost: 55.2, expected: '2026-09-11' }] }; };
+App.mock.api_makerEmailText = function () { return [{ vendor: 'Cranberry Island Kitchen', to: '', subject: 'Order', body: 'Hi,\n\n  40 × Whoopie pie twin pack\n\nThanks' }]; };
+</script>
+
+<!-- 55_customers.html -->
+<script>
+// CUSTOMERS — stamp card lookup and rewards, gift card balance and sale, this week's post.
+App.screen({
+  id: 'customers', title: 'Customers', order: 70,
+  render: function (root) {
+    root.innerHTML =
+      '<h3 style="margin:4px 0 6px">Stamp card</h3><div class="pin"><input type="tel" id="cu-phone" placeholder="Phone number" inputmode="tel"><button class="btn sm" id="cu-look">Look up</button></div><div id="cu-loyalty" class="muted"></div>' +
+      '<h3 style="margin:18px 0 6px">Gift cards</h3><div class="pin"><input type="text" id="cu-code" placeholder="GC-XXXX-XXXX" autocapitalize="characters"><button class="btn sm" id="cu-bal">Balance</button></div><div id="cu-card" class="muted"></div>' +
+      '<div class="pin"><input type="number" id="cu-amount" placeholder="Sell a card: amount $" inputmode="decimal" min="1"><button class="btn sm" id="cu-issue">Sell</button></div>' +
+      '<h3 style="margin:18px 0 6px">This week\'s post</h3><div id="cu-post" class="muted">Loading…</div>';
+    App.$('cu-look').onclick = function () {
+      App.call('api_loyalty', [App.$('cu-phone').value]).then(function (l) {
+        var box = App.$('cu-loyalty'); box.innerHTML = '';
+        var p = document.createElement('div'); p.textContent = l.stamps + ' of ' + l.goal + ' stamps' + (l.rewards ? ' · ' + l.rewards + ' rewards so far' : '') + (l.since ? ' · since ' + l.since : ''); box.appendChild(p);
+        if (l.rewardReady) { var b = document.createElement('button'); b.className = 'btn sm'; b.textContent = 'Give reward'; b.onclick = function () { if (!App.needPin()) return; App.call('api_redeemReward', [App.pin, l.phone]).then(function (r) { App.toast('Reward given · ' + r.stamps + ' stamps left'); App.$('cu-look').onclick(); }).catch(App.pinFailed); }; box.appendChild(b); }
+      }).catch(function (e) { App.toast(e.message || String(e), true); });
+    };
+    App.$('cu-bal').onclick = function () { App.call('api_giftCardBalance', [App.$('cu-code').value]).then(function (c) { App.$('cu-card').textContent = c.code + ': ' + App.money(c.balance) + ' left of ' + App.money(c.amount) + ' · ' + c.status; }).catch(function (e) { App.toast(e.message || String(e), true); }); };
+    App.$('cu-issue').onclick = function () {
+      var a = Number(App.$('cu-amount').value); if (!(a > 0)) return App.toast('Amount?', true);
+      if (!App.needPin()) return;
+      var buyer = prompt('Buyer name (optional)') || '';
+      App.call('api_issueGiftCard', [App.pin, a, buyer]).then(function (r) { App.$('cu-amount').value = ''; App.$('cu-card').textContent = 'Sold ' + r.code + ' for ' + App.money(r.amount) + '. Write the code on the card.'; App.toast('Gift card ' + r.code); App.emit('sale', { total: r.amount, grand: r.amount, items: ['Gift card'] }); }).catch(App.pinFailed);
+    };
+  },
+  onShow: function () {
+    App.call('api_newThisWeek').then(function (n) {
+      var box = App.$('cu-post'); box.innerHTML = '';
+      if (!n.items.length) { box.textContent = 'Nothing new received in the last 7 days.'; return; }
+      var t = document.createElement('div'); t.style.whiteSpace = 'pre-wrap'; t.style.color = 'var(--ink)'; t.textContent = n.instagram; box.appendChild(t);
+      var b = document.createElement('button'); b.className = 'btn ghost sm'; b.style.marginTop = '8px'; b.textContent = navigator.share ? 'Share' : 'Copy';
+      b.onclick = function () { if (navigator.share) navigator.share({ text: n.instagram }).catch(function () {}); else prompt('Copy this', n.instagram); };
+      box.appendChild(b);
+    }).catch(function (e) { App.$('cu-post').textContent = e.message || String(e); });
+  }
+});
+App.mock.api_loyalty = function (p) { return { phone: p, stamps: 10, rewards: 1, rewardReady: true, goal: 10, since: '2026-07-02' }; };
+App.mock.api_redeemReward = function () { return { stamps: 0, rewards: 2 }; };
+App.mock.api_issueGiftCard = function (p, a) { return { code: 'GC-7K3M-92QA', amount: a, balance: a }; };
+App.mock.api_newThisWeek = function () { return { since: '2026-09-01', items: [{ item: 'Driftwood frame', price: 32, maker: 'Tides & Threads (Sarah)' }], facebook: 'New…', instagram: 'New this week 🛍️\n• Driftwood frame by Tides & Threads (Sarah) — $32.00\n\n#UnionMaine #MaineMade' }; };
+</script>
+
+<!-- 60_expenses.html -->
+<style>
+  .form { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; display:grid; gap:8px; margin-bottom:12px; }
+  .form .two { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .money-grid { display:grid; grid-template-columns:1fr auto auto auto; gap:4px 10px; font-size:14px; }
+  .money-grid b { font-variant-numeric:tabular-nums; }
+</style>
+<script>
+// MONEY — quick-add an expense, see the month, and what you actually made.
+App.screen({
+  id: 'money', title: 'Money', order: 60,
+  render: function (root) {
+    var self = this;
+    root.innerHTML =
+      '<div class="form">' +
+        '<div class="two"><input type="number" id="ex-amount" placeholder="Amount $" inputmode="decimal" step="0.01" min="0"><select id="ex-cat"></select></div>' +
+        '<input type="text" id="ex-paid" placeholder="Paid to (optional)">' +
+        '<input type="text" id="ex-note" placeholder="What for (optional)">' +
+        '<button class="btn" id="ex-save">Add expense</button>' +
+      '</div>' +
+      '<div id="ex-month"></div>' +
+      '<h3 style="margin:16px 0 6px">What you actually made</h3><div class="money-grid" id="money-grid"></div>' +
+      '<div class="list" id="ex-list"></div>';
+    ['bags & tags', 'fixtures', 'insurance', 'fees', 'marketing', 'supplies', 'other'].forEach(function (c) { var o = document.createElement('option'); o.value = c; o.textContent = c; App.$('ex-cat').appendChild(o); });
+    App.$('ex-save').onclick = function () {
+      var amt = Number(App.$('ex-amount').value); if (!(amt > 0)) return App.toast('How much?', true);
+      if (!App.needPin()) return;
+      var b = App.$('ex-save'); b.disabled = true;
+      App.call('api_expense', [App.pin, { amount: amt, category: App.$('ex-cat').value, paidTo: App.$('ex-paid').value, note: App.$('ex-note').value, who: App.staff }]).then(function (r) {
+        b.disabled = false; App.$('ex-amount').value = ''; App.$('ex-paid').value = ''; App.$('ex-note').value = '';
+        App.toast('Added ' + App.money(r.amount) + ' · ' + r.category); App.emit('expense', r); self.refresh();
+      }).catch(function (e) { b.disabled = false; App.pinFailed(e); });
+    };
+  },
+  onShow: function () { this.refresh(); },
+  refresh: function () {
+    App.call('api_expenses').then(function (E) {
+      var box = App.$('ex-month'); box.innerHTML = '';
+      var h = document.createElement('div'); h.className = 'muted'; h.textContent = E.month + ': ' + App.money(E.total) + ' in expenses' + (Object.keys(E.byCategory).length ? ' — ' + Object.keys(E.byCategory).map(function (c) { return c + ' ' + App.money(E.byCategory[c]); }).join(', ') : ''); box.appendChild(h);
+      var list = App.$('ex-list'); list.innerHTML = '';
+      E.rows.forEach(function (r) { var d = document.createElement('div'); d.className = 'row'; d.innerHTML = '<div class="name"><b></b><span></span></div><div class="price"></div>'; d.querySelector('b').textContent = r.category + (r.paidTo ? ' · ' + r.paidTo : ''); d.querySelector('span').textContent = r.date + (r.note ? ' · ' + r.note : '') + (r.who ? ' · ' + r.who : ''); d.querySelector('.price').textContent = App.money(r.amount); list.appendChild(d); });
+    }).catch(function (e) { App.toast(e.message || String(e), true); });
+    App.call('api_money').then(function (M) {
+      var g = App.$('money-grid'); g.innerHTML = '';
+      var add = function (a, b, c, d, strong) { [a, b, c, d].forEach(function (v, i) { var el = document.createElement(strong || i === 0 ? 'b' : 'span'); el.textContent = v; g.appendChild(el); }); };
+      add('', 'This month', 'Last month', '90 days');
+      [['Sales', 'sales'], ['Cost of goods', 'cogs'], ['Host share', 'hostShare'], ["Makers' share", 'makerShare'], ['Expenses', 'expenses'], ['Net profit', 'net']].forEach(function (l) { add(l[0], App.money(M.thisMonth[l[1]]), App.money(M.lastMonth[l[1]]), App.money(M.d90[l[1]]), l[1] === 'net'); });
+      add('Owed to ' + M.owed.host.name, App.money(M.owed.host.owed), '', '');
+      M.owed.makers.forEach(function (m) { add('Owed to ' + m.name, App.money(m.owed), '', ''); });
+    }).catch(function (e) { App.toast(e.message || String(e), true); });
+  }
+});
+App.mock.api_expense = function (p, o) { return { row: 2, category: o.category, amount: o.amount, date: '2026-09-08' }; };
+App.mock.api_expenses = function () { return { month: '2026-09', total: 61.5, byCategory: { 'bags & tags': 41.5, fees: 20 }, categories: [], rows: [{ date: '2026-09-06', category: 'bags & tags', amount: 41.5, paidTo: 'Temu', note: 'kraft bags', who: 'Elliott' }, { date: '2026-09-02', category: 'fees', amount: 20, paidTo: 'Square', note: '', who: '' }] }; };
+App.mock.api_money = function () { var p = { sales: 1180, cogs: 560, hostShare: 236, makerShare: 48, expenses: 61.5, net: 274.5, tax: 41, cash: 300, card: 880 }; return { thisMonth: p, lastMonth: p, d90: p, owed: { host: { name: 'Common House of Pizza', accrued: 236, paid: 0, owed: 236 }, makers: [{ name: 'Tides & Threads (Sarah)', earned: 48, paid: 0, owed: 48 }] } }; };
+</script>
+
+</body>
+</html>
