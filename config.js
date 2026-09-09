@@ -1,1 +1,1 @@
-window.SHOP_CONFIG = {"execUrl":"https://script.google.com/macros/s/AKfycbx1azIU1jUzgomHiJu_vNvJtJNfkdticfp9BJ8MolqhfS0kx7_nmmoNh0-rZoP8cu-G/exec","name":"Common House Gift Shop","version":"vmtuokgkn"};
+window.SHOP_CONFIG = {"execUrl":"https://script.google.com/macros/s/AKfycbx1azIU1jUzgomHiJu_vNvJtJNfkdticfp9BJ8MolqhfS0kx7_nmmoNh0-rZoP8cu-G/exec","name":"Common House Gift Shop","version":"vmtuonyuz"};
