@@ -361,12 +361,24 @@ window.App = (function () {
   }
   document.addEventListener('DOMContentLoaded', init);
 
+  // Crashes on the phone are reported to the Errors tab (at most one every 20 seconds, never for the report itself).
+  (function () {
+    var lastSent = 0;
+    function report(msg, where, stack) {
+      if (Date.now() - lastSent < 20000 || /api_clientError/.test(String(msg) + String(stack))) return;
+      lastSent = Date.now();
+      try { call('api_clientError', [String(msg).slice(0, 300), String(where || current || '').slice(0, 80), String(stack || '').slice(0, 800)]).catch(function () {}); } catch (e) {}
+    }
+    window.addEventListener('error', function (e) { report(e.message, (e.filename || '') + ':' + (e.lineno || ''), e.error && e.error.stack); });
+    window.addEventListener('unhandledrejection', function (e) { var r = e.reason || {}; if (/Wrong PIN|manager PIN/.test(String(r.message))) return; report(r.message || String(r), 'promise', r.stack); });
+  })();
+
   return {
     screen: screen, show: show, call: call, toast: toast, money: money, needPin: needPin, pinFailed: pinFailed,
     on: on, emit: emit, items: items, filtered: filtered, score: score, rowEl: rowEl, load: load, $: $, beep: beep, recent: recent,
-    choose: choose, pickStaff: pickStaff, setStaff: setStaff, scanButton: scanButton, scanner: null, store: store,
+    choose: choose, pickStaff: pickStaff, setStaff: setStaff, scanButton: scanButton, scanner: null, print: null, store: store,
     get data() { return data; }, set data(v) { data = v; }, get pin() { return pin; }, get current() { return current; }, get staff() { return staff; },
-    apiUrl: null, mock: {}, transport: null, loadFn: 'api_load', kiosk: null
+    apiUrl: null, mock: {}, transport: null, loadFn: 'api_load', kiosk: null, alerts: null
   };
 })();
 
@@ -482,7 +494,99 @@ App.mock.api_reorder = function () { return { amazonCartUrl: 'https://www.amazon
   window.addEventListener('online', replay);
   setInterval(replay, 60000);
   document.addEventListener('DOMContentLoaded', function () { badge(); setTimeout(replay, 1500); });
-  if ('serviceWorker' in navigator && cfg.sw !== false) { window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); }); }
+  // Device login: after the first successful write with a PIN, the phone registers itself and keeps a token instead of the PIN.
+  App.on('sale', maybeRegister); App.on('count', maybeRegister); App.on('receipt', maybeRegister);
+  function maybeRegister() {
+    var p = App.pin; if (!p || p.indexOf('dev:') === 0 || store.get('shop-device-tried')) return;
+    store.set('shop-device-tried', '1');
+    var name = (App.staff ? App.staff + "'s " : '') + (/iPhone|iPad/.test(navigator.userAgent) ? 'iPhone' : /Android/.test(navigator.userAgent) ? 'Android' : 'phone');
+    post('api_registerDevice', [p, name, App.staff]).then(function (r) { if (r && r.token) { store.set('shop-pin', r.token); App.toast('This phone is now registered as ' + r.name + ' — no PIN needed here'); } }).catch(function () {});
+  }
+  // A registered phone's pin is its token; core reads localStorage 'shop-pin' on start, so nothing else changes.
+
+  // "New version" bar: the service worker tells the page when a fresh build has been installed.
+  function updateBar() {
+    if (document.getElementById('update-bar')) return;
+    var bar = document.createElement('button'); bar.id = 'update-bar'; bar.className = 'btn'; bar.style.position = 'fixed'; bar.style.left = '12px'; bar.style.right = '12px'; bar.style.bottom = '140px'; bar.style.zIndex = '9';
+    bar.textContent = 'New version ready — tap to reload'; bar.onclick = function () { location.reload(); };
+    document.body.appendChild(bar);
+  }
+  if ('serviceWorker' in navigator && cfg.sw !== false) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js').then(function (reg) {
+        if (reg.waiting) updateBar();
+        reg.addEventListener('updatefound', function () { var nw = reg.installing; if (!nw) return; nw.addEventListener('statechange', function () { if (nw.state === 'installed' && navigator.serviceWorker.controller) updateBar(); }); });
+      }).catch(function () {});
+      navigator.serviceWorker.addEventListener('message', function (e) { if (e.data && e.data.type === 'updated') updateBar(); });
+    });
+  }
+})();
+</script>
+
+<!-- 02_alerts.html -->
+<script>
+// ALERTS — the bell in the header. Polls the sheet while the app is open, badges what needs a person, and (with permission)
+// pops a phone notification when something urgent is new. Apps Script cannot push, so this is polling; five minutes is plenty.
+(function () {
+  var seen = {}; try { seen = JSON.parse(localStorage.getItem('shop-alerts-seen') || '{}'); } catch (e) {}
+  var last = { alerts: [], high: 0 }, timer = null, POLL = 5 * 60 * 1000;
+  function saveSeen() { try { localStorage.setItem('shop-alerts-seen', JSON.stringify(seen)); } catch (e) {} }
+  var bell = document.createElement('button'); bell.className = 'chip'; bell.id = 'alerts-chip'; bell.title = 'Alerts'; bell.setAttribute('aria-label', 'Alerts'); bell.textContent = '🔔';
+  var badge = document.createElement('span'); badge.id = 'alerts-badge'; badge.style.cssText = 'display:none;position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;border-radius:9px;background:var(--bad);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;padding:0 4px';
+  bell.style.position = 'relative'; bell.appendChild(badge);
+  function mount() { var right = document.querySelector('.hdr-right'), menu = document.getElementById('menu-chip'); if (right && !document.getElementById('alerts-chip')) right.insertBefore(bell, menu || null); }
+  function draw() {
+    var n = last.alerts.length, hi = last.high;
+    badge.style.display = n ? 'block' : 'none'; badge.textContent = String(n); badge.style.background = hi ? 'var(--bad)' : 'var(--mute)';
+    bell.title = n ? n + ' alert' + (n === 1 ? '' : 's') : 'No alerts';
+  }
+  function notifyNew(alerts) {
+    var fresh = alerts.filter(function (a) { return a.level === 'high' && !seen[a.id]; });
+    alerts.forEach(function (a) { seen[a.id] = Date.now(); });
+    Object.keys(seen).forEach(function (k) { if (Date.now() - seen[k] > 7 * 86400000) delete seen[k]; });
+    saveSeen();
+    if (!fresh.length || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    var title = fresh.length === 1 ? fresh[0].text : fresh.length + ' things need you', body = fresh.length === 1 ? '' : fresh.map(function (a) { return '• ' + a.text; }).join('\n');
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) navigator.serviceWorker.ready.then(function (reg) { if (reg.showNotification) reg.showNotification(title, { body: body, tag: 'shop-alerts', icon: 'icons/icon-192.png' }); else new Notification(title, { body: body, tag: 'shop-alerts' }); }).catch(function () { new Notification(title, { body: body, tag: 'shop-alerts' }); });
+      else new Notification(title, { body: body, tag: 'shop-alerts' });
+    } catch (e) {}
+  }
+  function refresh(quiet) {
+    if (App.kiosk) return Promise.resolve();
+    return App.call('api_alerts', [App.pin || '']).then(function (r) { last = r || { alerts: [], high: 0 }; draw(); notifyNew(last.alerts); return last; }).catch(function () { if (!quiet) App.toast('Could not load alerts', true); });
+  }
+  function open() {
+    var wrap = document.createElement('div'); wrap.className = 'sheet-back'; wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:50;display:flex;align-items:flex-end';
+    var box = document.createElement('div'); box.style.cssText = 'background:var(--card);width:100%;max-height:80vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px;box-shadow:0 -4px 20px rgba(0,0,0,.2)';
+    var h = document.createElement('div'); h.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px';
+    var t = document.createElement('b'); t.textContent = last.alerts.length ? 'Needs a person' : 'Nothing needs you right now'; h.appendChild(t);
+    var x = document.createElement('button'); x.className = 'chip'; x.textContent = 'Close'; x.onclick = function () { wrap.remove(); }; h.appendChild(x); box.appendChild(h);
+    last.alerts.forEach(function (a) {
+      var d = document.createElement('div'); d.className = 'row'; d.style.cursor = a.screen ? 'pointer' : 'default';
+      var dot = document.createElement('span'); dot.textContent = a.level === 'high' ? '!' : '·'; dot.style.cssText = 'font-weight:900;width:18px;color:' + (a.level === 'high' ? 'var(--bad)' : 'var(--mute)');
+      var s = document.createElement('span'); s.textContent = a.text; s.style.flex = '1';
+      d.appendChild(dot); d.appendChild(s);
+      if (a.screen) { var go = document.createElement('span'); go.className = 'muted'; go.textContent = '›'; d.appendChild(go); d.onclick = function () { wrap.remove(); App.show(a.screen); }; }
+      box.appendChild(d);
+    });
+    var foot = document.createElement('div'); foot.style.cssText = 'display:flex;gap:8px;margin-top:12px;flex-wrap:wrap';
+    var re = document.createElement('button'); re.className = 'btn ghost sm'; re.textContent = 'Check again'; re.onclick = function () { wrap.remove(); refresh().then(open); }; foot.appendChild(re);
+    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      var perm = document.createElement('button'); perm.className = 'btn ghost sm'; perm.textContent = 'Turn on phone notifications'; perm.onclick = function () { Notification.requestPermission().then(function (p) { App.toast(p === 'granted' ? 'Notifications on: urgent things will pop up while the app is open' : 'Notifications stay off'); perm.remove(); }); }; foot.appendChild(perm);
+    }
+    var when = document.createElement('small'); when.className = 'muted'; when.style.alignSelf = 'center'; when.textContent = last.at ? 'checked ' + new Date(last.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''; foot.appendChild(when);
+    box.appendChild(foot); wrap.appendChild(box);
+    wrap.onclick = function (e) { if (e.target === wrap) wrap.remove(); };
+    document.body.appendChild(wrap);
+  }
+  bell.onclick = function () { if (!last.at) refresh().then(open); else open(); };
+  function start() { mount(); refresh(true); if (timer) clearInterval(timer); timer = setInterval(function () { if (document.visibilityState === 'visible') refresh(true); }, POLL); }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && last.at && Date.now() - new Date(last.at).getTime() > 60000) refresh(true); });
+  App.on('load', function () { start(); });
+  App.on('pin', function () { refresh(true); });
+  App.alerts = { refresh: refresh, open: open, get last() { return last; } };
+  App.mock.api_alerts = function () { return { alerts: [{ id: 'ship', level: 'high', text: '1 online order to ship', screen: 'orders' }, { id: 'holds', level: 'info', text: '1 hold expires today: Balsam pillow for Jo', screen: 'shelf' }], high: 1, at: new Date().toISOString() }; };
 })();
 </script>
 
@@ -591,6 +695,9 @@ App.mock.api_reorder = function () { return { amazonCartUrl: 'https://www.amazon
   .after button { flex:1; min-width:110px; }
   .loy { display:flex; gap:8px; margin-bottom:8px; }
   .loy input { flex:1; }
+  .quick { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-bottom:8px; }
+  .quick button { min-height:56px; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:10px; font-weight:700; font-size:13px; padding:6px; line-height:1.15; overflow:hidden; }
+  .quick button small { display:block; color:var(--mute); font-weight:500; }
 </style>
 <script>
 // SELL — tap items into a basket, adjust a line, pick a payment, charge. Bundles, markdown mode, undo, receipts, Square.
@@ -605,6 +712,7 @@ App.screen({
         '<div class="tile"><small>This month</small><b id="t-month">–</b></div>' +
         '<div class="tile"><small>To reorder</small><b id="t-low">–</b></div>' +
       '</div>' +
+      '<div class="quick" id="sell-quick"></div>' +
       '<div class="chips" id="sell-recent"></div>' +
       '<div class="chips" id="sell-bundles"></div>' +
       '<div class="chips"><button class="chip" id="sell-markdown">Markdown mode</button><button class="chip" id="sell-basket">Basket % off</button></div>' +
@@ -620,7 +728,9 @@ App.screen({
     document.body.appendChild(cart);
     App.$('q-sell').oninput = function () { self.renderList(); };
     App.$('sell-markdown').onclick = function () { self.markdown = !self.markdown; App.$('sell-markdown').classList.toggle('on', self.markdown); App.toast(self.markdown ? 'Markdown mode: tapped items get ' + (App.data ? App.data.markdownPct : 20) + '% off' : 'Markdown mode off'); };
-    App.$('sell-basket').onclick = function () { App.choose('Whole basket off', ['0%', '10%', '15%', '20%', '25%', '50%'], self.basketPct + '%', function (o) { self.basketPct = parseInt(o, 10) || 0; App.$('sell-basket').textContent = self.basketPct ? 'Basket ' + self.basketPct + '% off' : 'Basket % off'; App.$('sell-basket').classList.toggle('on', !!self.basketPct); self.renderList(); }); };
+    App.$('sell-basket').onclick = function () { App.choose('Whole basket off', ['0%', '10%', '15%', '20%', '25%', '50%', 'Coupon code…'], self.basketPct + '%', function (o) {
+      if (o === 'Coupon code…') { var code = prompt('Coupon code'); if (!code) return; App.call('api_checkCoupon', [code.trim()]).then(function (c) { if (c.type !== 'shop') return App.toast('That is a pizza coupon — it is for the pizza counter', true); self.coupon = c; var keys = Object.keys(self.cart).filter(function (k) { return k.indexOf('bundle:') !== 0; }); if (!keys.length) return App.toast('Add the items first', true); self.discs = self.discs || {}; self.discs[keys[0]] = (self.discs[keys[0]] || 0) + c.value; App.toast(App.money(c.value) + ' off with ' + c.code); self.renderList(); }).catch(function (e) { App.toast(e.message || String(e), true); }); return; }
+      self.basketPct = parseInt(o, 10) || 0; App.$('sell-basket').textContent = self.basketPct ? 'Basket ' + self.basketPct + '% off' : 'Basket % off'; App.$('sell-basket').classList.toggle('on', !!self.basketPct); self.renderList(); }); };
     App.$('charge').onclick = function () { self.charge(); };
     App.on('sale', function () { self.renderList(); });
     App.on('recent', function () { self.renderRecent(); });
@@ -635,6 +745,11 @@ App.screen({
   onData: function (d) {
     var self = this;
     App.$('t-week').textContent = App.money(d.week); App.$('t-month').textContent = App.money(d.month); App.$('t-low').textContent = d.lowCount;
+    // quick keys: the eight best sellers of the month, one tap each
+    var q = App.$('sell-quick'); q.innerHTML = '';
+    var top = (d.items || []).filter(function (i) { return i.sold30 > 0 && i.onHand > 0; }).sort(function (a, b) { return b.sold30 - a.sold30; }).slice(0, 8);
+    q.hidden = top.length < 4;
+    top.forEach(function (i) { var b = document.createElement('button'); b.innerHTML = '<span></span><small></small>'; b.querySelector('span').textContent = i.base || i.item; b.querySelector('small').textContent = App.money(i.price); b.onclick = function () { self.add(i); }; q.appendChild(b); });
     var b = App.$('sell-bundles'); b.innerHTML = '';
     (d.bundles || []).forEach(function (bd) {
       var c = document.createElement('button'); c.className = 'chip'; c.textContent = bd.name + ' · ' + App.money(bd.price);
@@ -642,7 +757,7 @@ App.screen({
       b.appendChild(c);
     });
     b.hidden = !(d.bundles && d.bundles.length);
-    var pays = ['card', 'cash', 'pizza pos', 'gift card']; if (d.squareAppId) pays.unshift('square');
+    var pays = ['card', 'cash', 'split', 'pizza pos', 'gift card']; if (d.squareAppId) pays.unshift('square');
     var pay = App.$('sell-pay'); pay.innerHTML = '';
     pays.forEach(function (p) { var bt = document.createElement('button'); bt.textContent = p === 'square' ? 'Charge with Square' : p === 'pizza pos' ? 'Rang on pizza POS' : p.charAt(0).toUpperCase() + p.slice(1); bt.dataset.p = p; bt.classList.toggle('on', p === self.pay); bt.onclick = function () { self.pay = p; pay.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === bt); }); self.renderList(); }; pay.appendChild(bt); });
     self.renderList();
@@ -678,11 +793,27 @@ App.screen({
       self.renderList();
     });
   },
+  /** Add an item; a product with variants (name "Tee — M") asks which one. */
+  add: function (i) {
+    var self = this;
+    var sibs = i.base && i.variant ? App.items().filter(function (x) { return x.base === i.base && x.variant; }) : [];
+    if (sibs.length > 1) {
+      App.choose(i.base + ' — which one?', sibs.map(function (x) { return x.variant + (x.onHand <= 0 ? ' (none)' : ''); }), null, function (o) { var pick = sibs.filter(function (x) { return o.indexOf(x.variant) === 0; })[0]; if (pick) { self.cart[pick.sku] = (self.cart[pick.sku] || 0) + 1; self.applyMarkdown(pick); self.renderList(); } });
+      return;
+    }
+    self.cart[i.sku] = (self.cart[i.sku] || 0) + 1; self.applyMarkdown(i); self.renderList();
+  },
+  applyMarkdown: function (i) { if (this.markdown) { this.discs = this.discs || {}; this.discs[i.sku] = Math.round(this.cart[i.sku] * i.price * ((App.data && App.data.markdownPct) || 20)) / 100; } },
   renderList: function () {
     var self = this, list = App.$('l-sell'); list.innerHTML = '';
     var q = App.$('q-sell').value;
+    var seenBase = {};
     App.filtered(q).forEach(function (i) {
+      // one row per product for variants, unless the search is specific enough to name one
+      if (i.base && i.variant && !self.cart[i.sku]) { if (seenBase[i.base] && !q) return; seenBase[i.base] = true; }
       var d = App.rowEl(i, 'tappable');
+      if (i.base && i.variant && !q && !self.cart[i.sku]) { var sibs = App.items().filter(function (x) { return x.base === i.base && x.variant; }); if (sibs.length > 1) { d.querySelector('b').textContent = i.base; d.querySelector('span').textContent = sibs.map(function (x) { return x.variant + ' ' + x.onHand; }).join(' · ') + ' · ' + i.cat; } }
+      if (i.held) d.querySelector('span').textContent += ' · ' + i.held + ' on hold';
       var right = document.createElement('div');
       if (self.cart[i.sku]) {
         right.className = 'qty';
@@ -692,11 +823,7 @@ App.screen({
         d.onclick = function () { self.adjust(i.sku); };
       } else {
         right.className = 'price'; right.textContent = App.money(i.price);
-        d.onclick = function () {
-          self.cart[i.sku] = (self.cart[i.sku] || 0) + 1;
-          if (self.markdown) { self.discs = self.discs || {}; self.discs[i.sku] = Math.round(self.cart[i.sku] * i.price * ((App.data && App.data.markdownPct) || 20)) / 100; }
-          self.renderList();
-        };
+        d.onclick = function () { self.add(i); };
       }
       d.appendChild(right);
       list.appendChild(d);
@@ -739,11 +866,21 @@ App.screen({
       return;
     }
     var finish = function (giftCode) {
-      App.call('api_sell', [App.pin, lines, self.pay, opts]).then(function (r) {
+      var payment = self.pay;
+      if (payment === 'split') {
+        var t = self.totals(), due = Math.round((t.sub + t.tax) * 100) / 100;
+        var cash = prompt('Total ' + App.money(due) + '. How much in cash? The rest goes on card.', '');
+        if (cash === null) { reset(); return; }
+        cash = Math.min(due, Math.max(0, Number(cash) || 0));
+        payment = [{ type: 'cash', amount: cash }, { type: 'card', amount: Math.round((due - cash) * 100) / 100 }];
+      }
+      App.call('api_sell', [App.pin, lines, payment, opts]).then(function (r) {
         reset();
         lines.forEach(function (l) { if (!l.sku) return; var it = App.items().filter(function (x) { return x.sku === l.sku; })[0]; if (it) { it.onHand -= l.qty; it.low = it.reorder > 0 && it.onHand <= it.reorder; } });
         App.data.week += r.total; App.data.month += r.total; App.$('t-week').textContent = App.money(App.data.week); App.$('t-month').textContent = App.money(App.data.month);
         self.cart = {}; self.discs = {}; self.overs = {}; self.basketPct = 0; App.$('sell-basket').textContent = 'Basket % off'; App.$('sell-basket').classList.remove('on');
+        if (self.coupon) { App.call('api_useCoupon', [App.pin, self.coupon.code, r.ref]).catch(function () {}); self.coupon = null; }
+        if (r.coupon) setTimeout(function () { App.toast('They earned ' + App.money(r.coupon.value) + ' off a pizza: ' + r.coupon.code + ' (it is on the receipt)'); }, 2400);
         self.last = r; self.renderList(); self.afterSale(r);
         if (giftCode) App.call('api_redeemGiftCard', [App.pin, giftCode, r.grand, r.ref]).then(function (g) { App.toast('Gift card balance now ' + App.money(g.balance)); }).catch(function (e) { App.toast(e.message || String(e), true); });
         var phone = App.$('sell-phone').value.replace(/\D/g, '');
@@ -770,9 +907,11 @@ App.screen({
   afterSale: function (r) {
     var self = this, box = App.$('sell-after'); box.innerHTML = ''; box.hidden = false;
     var mk = function (label, fn) { var b = document.createElement('button'); b.className = 'btn ghost sm'; b.textContent = label; b.onclick = fn; box.appendChild(b); };
-    mk('Email receipt', function () { var em = prompt('Email address'); if (em) App.call('api_receipt', [App.pin, r.ref, { email: em }]).then(function () { App.toast('Receipt sent'); }).catch(function (e) { App.toast(e.message || String(e), true); }); });
+    mk('Email receipt', function () { var em = prompt('Email address'); if (!em) return; var join = confirm('Add them to the monthly email list too?'); App.call('api_receipt', [App.pin, r.ref, { email: em, subscribe: join }]).then(function (x) { App.toast('Receipt sent' + (x.subscribed ? ' · added to the list' : '')); }).catch(function (e) { App.toast(e.message || String(e), true); }); });
     mk('Gift receipt', function () { var em = prompt('Email address for the gift receipt'); if (em) App.call('api_receipt', [App.pin, r.ref, { email: em, gift: true }]).then(function () { App.toast('Gift receipt sent'); }).catch(function (e) { App.toast(e.message || String(e), true); }); });
     if (navigator.share) mk('Share', function () { App.call('api_receipt', [App.pin, r.ref, {}]).then(function (x) { navigator.share({ title: 'Receipt', text: x.text, url: x.url || undefined }).catch(function () {}); }).catch(function (e) { App.toast(e.message || String(e), true); }); });
+    if (App.data && App.data.smsReady) mk('Text receipt', function () { var ph = prompt('Phone number'); if (ph) App.call('api_smsReceipt', [App.pin, r.ref, ph]).then(function (x) { App.toast(x.sent ? 'Receipt texted' : x.reason, !x.sent); }).catch(function (e) { App.toast(e.message || String(e), true); }); });
+    if (App.print) mk('Print', function () { App.call('api_receipt', [App.pin, r.ref, {}]).then(function (x) { return App.print(x.text); }).then(function () { App.toast('Printed'); }).catch(function (e) { App.toast(e.message || String(e), true); }); });
     App.$('cart').hidden = false;
   }
 });
@@ -828,6 +967,43 @@ App.mock.api_squareStart = function () { return { token: 'tok', cents: 1550, ios
 App.mock.api_giftCardBalance = function (code) { return { code: code, balance: 25, status: 'Active' }; };
 App.mock.api_redeemGiftCard = function (p, code, amt) { return { balance: Math.max(0, 25 - amt) }; };
 App.mock.api_stamp = function () { return { stamps: 3, rewardReady: false }; };
+</script>
+
+<!-- 24_print.html -->
+<script>
+// PRINT — a cheap Bluetooth receipt printer (ESC/POS) from the phone, on browsers that have Web Bluetooth (Android Chrome).
+(function () {
+  if (!navigator.bluetooth) return;
+  var device = null, characteristic = null;
+  var SERVICES = ['000018f0-0000-1000-8000-00805f9b34fb', '49535343-fe7d-4ae5-8fa9-9fafd205e455', '0000ff00-0000-1000-8000-00805f9b34fb'];
+  function connect() {
+    if (characteristic) return Promise.resolve(characteristic);
+    return navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: SERVICES }).then(function (d) { device = d; return d.gatt.connect(); })
+      .then(function (server) { return server.getPrimaryServices(); })
+      .then(function (services) {
+        var tries = services.map(function (s) { return function () { return s.getCharacteristics().then(function (cs) { var w = cs.filter(function (c) { return c.properties.write || c.properties.writeWithoutResponse; })[0]; if (!w) throw new Error('no writable characteristic'); return w; }); }; });
+        var p = Promise.reject(new Error('start'));
+        tries.forEach(function (t) { p = p.catch(t); });
+        return p;
+      })
+      .then(function (c) { characteristic = c; if (device) device.addEventListener('gattserverdisconnected', function () { characteristic = null; }); return c; })
+      .catch(function (e) { characteristic = null; throw new Error('Could not connect to a printer: ' + (e.message || e)); });
+  }
+  function bytes(text) {
+    var out = [0x1b, 0x40]; // initialise
+    var s = String(text).replace(/[^\x00-\x7f]/g, function (ch) { return ch === '×' ? 'x' : ch === '—' ? '-' : ch === '·' ? '-' : '?'; });
+    for (var i = 0; i < s.length; i++) out.push(s.charCodeAt(i));
+    out.push(0x0a, 0x0a, 0x0a, 0x0a, 0x1d, 0x56, 0x00); // feed and cut
+    return new Uint8Array(out);
+  }
+  App.print = function (text) {
+    return connect().then(function (c) {
+      var data = bytes(text), chunk = 100, p = Promise.resolve();
+      for (var i = 0; i < data.length; i += chunk) (function (slice) { p = p.then(function () { return c.properties.writeWithoutResponse ? c.writeValueWithoutResponse(slice) : c.writeValue(slice); }); })(data.slice(i, i + chunk));
+      return p;
+    });
+  };
+})();
 </script>
 
 <!-- 30_count.html -->
@@ -983,12 +1159,13 @@ App.screen({
           var inp = document.createElement('input'); inp.type = 'number'; inp.className = 'count-in'; inp.value = l.remaining; inp.inputMode = 'numeric'; inp.min = '0';
           inputs[l.sku] = inp; r.appendChild(nm); r.appendChild(inp); g.appendChild(r);
         });
+        var ship = document.createElement('input'); ship.type = 'number'; ship.placeholder = 'Shipping on this box $ (optional)'; ship.inputMode = 'decimal'; ship.style.marginTop = '8px'; g.appendChild(ship);
         var b = document.createElement('button'); b.className = 'btn sm'; b.style.marginTop = '8px'; b.textContent = 'Receive';
         b.onclick = function () {
           if (!App.needPin()) return;
           b.disabled = true;
           var lines = Object.keys(inputs).map(function (sku) { return { sku: sku, qty: Number(inputs[sku].value || 0) }; });
-          App.call('api_receiveOrder', [App.pin, p.po, lines]).then(function (r) {
+          App.call('api_receiveOrder', [App.pin, p.po, lines, Number(ship.value || 0)]).then(function (r) {
             App.toast(r.complete ? p.po + ' received in full' : p.po + ' received, still short on ' + (p.lines.length - r.received.length) + ' line(s)');
             App.emit('receipt', r); App.load(); self.renderOrders();
           }).catch(function (e) { b.disabled = false; App.pinFailed(e); });
@@ -1074,7 +1251,7 @@ App.screen({
         var ins2 = d.querySelectorAll('input');
         ins2[0].value = p.name || ''; ins2[1].value = p.price || ''; ins2[2].value = p.qty || ''; sel.value = p.cat || 'Local crafts';
         ins2[0].oninput = function () { p.name = ins2[0].value; }; ins2[1].oninput = function () { p.price = ins2[1].value; }; ins2[2].oninput = function () { p.qty = ins2[2].value; }; sel.onchange = function () { p.cat = sel.value; };
-        ins2[3].onchange = function () { p.file = ins2[3].files[0]; };
+        ins2[3].onchange = function () { p.file = ins2[3].files[0]; if (!p.file || !(App.data && App.data.claude) || (p.name && p.price)) return; App.toast('Asking Claude what this is…'); self.shrinkPhoto(p.file).then(function (dataUrl) { if (!dataUrl || !App.needPin()) return; return App.call('api_suggestFromPhoto', [App.pin, dataUrl.split(',')[1], 'image/jpeg', p.name || '']).then(function (s) { if (!p.name && s.name) { p.name = s.name; ins2[0].value = s.name; } if (!p.price && s.price) { p.price = s.price; ins2[1].value = s.price; } if (s.category && sel.querySelector('option[value="' + s.category + '"]')) { p.cat = s.category; sel.value = s.category; } App.toast('Claude suggests: ' + s.name + ' at ' + App.money(s.price) + (s.matches && s.matches.length ? ' — looks like ' + s.matches[0].item + ' already on the shelf' : '') + (s.confidence === 'low' ? ' (not sure)' : '')); }); }).catch(function (e) { App.toast(e.message || String(e), true); }); };
       }
       d.querySelector('button.chip').onclick = function () { self.pieces.splice(idx, 1); self.renderPieces(); };
       box.appendChild(d);
@@ -1116,6 +1293,53 @@ App.mock.api_intake = function (p, o) { return { maker: o.maker, pct: 60, skus: 
 App.mock.api_uploadPhoto = function () { return { url: '' }; };
 </script>
 
+<!-- 46_photos.html -->
+<style>
+  .photo-day { text-align:center; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .photo-day h3 { margin:0 0 4px; }
+  .photo-day .preview { width:100%; max-height:260px; object-fit:contain; border-radius:10px; margin:10px 0; background:var(--bg); }
+  .photo-day .row-btns { display:flex; gap:8px; }
+  .photo-day .row-btns button { flex:1; }
+</style>
+<script>
+// PHOTOS — photo day: walk the shelf, one item at a time, snap, next. Only items without a photo are offered.
+App.screen({
+  id: 'photos', title: 'Photos', order: 37,
+  render: function (root) {
+    var self = this; self.queue = []; self.idx = 0;
+    root.innerHTML = '<p class="muted" id="ph-count"></p><div class="photo-day" id="ph-card"></div>';
+  },
+  onData: function (d) { this.queue = (d.items || []).filter(function (i) { return !i.photo; }); this.idx = 0; this.renderCard(); },
+  onShow: function () { this.renderCard(); },
+  shrink: function (file) {
+    return new Promise(function (resolve) {
+      var img = new Image(); var url = URL.createObjectURL(file);
+      img.onload = function () { var s = Math.min(1, 800 / Math.max(img.width, img.height)); var c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); resolve(c.toDataURL('image/jpeg', 0.82)); };
+      img.onerror = function () { resolve(null); }; img.src = url;
+    });
+  },
+  renderCard: function () {
+    var self = this, card = App.$('ph-card'); if (!card) return;
+    App.$('ph-count').textContent = self.queue.length ? (self.queue.length - self.idx) + ' item(s) still need a photo' : 'Every item has a photo.';
+    card.innerHTML = '';
+    var i = self.queue[self.idx];
+    if (!i) { card.innerHTML = '<h3>Done</h3><p class="muted">Photos show on tiles, in the kiosk and on the owner page.</p>'; return; }
+    card.innerHTML = '<h3></h3><div class="muted"></div><img class="preview" alt="" hidden><input type="file" accept="image/*" capture="environment" id="ph-file" hidden>' +
+      '<div class="row-btns"><button class="btn" id="ph-snap">Take photo</button><button class="btn ghost" id="ph-skip">Skip</button></div><button class="btn ghost" id="ph-save" hidden style="margin-top:8px">Save and next</button>';
+    card.querySelector('h3').textContent = i.item; card.querySelector('.muted').textContent = i.cat + ' · ' + App.money(i.price);
+    var file = App.$('ph-file'), img = card.querySelector('img'), data = null;
+    App.$('ph-snap').onclick = function () { file.click(); };
+    file.onchange = function () { if (!file.files[0]) return; self.shrink(file.files[0]).then(function (d) { data = d; if (d) { img.src = d; img.hidden = false; App.$('ph-save').hidden = false; } }); };
+    App.$('ph-skip').onclick = function () { self.idx++; self.renderCard(); };
+    App.$('ph-save').onclick = function () {
+      if (!data || !App.needPin()) return;
+      var b = App.$('ph-save'); b.disabled = true; b.textContent = 'Saving…';
+      App.call('api_uploadPhoto', [App.pin, i.sku, data.split(',')[1], 'image/jpeg']).then(function (r) { i.photo = r.url; App.toast('Saved'); self.idx++; self.renderCard(); }).catch(function (e) { b.disabled = false; b.textContent = 'Save and next'; App.pinFailed(e); });
+    };
+  }
+});
+</script>
+
 <!-- 50_reorder.html -->
 <style>
   .group { margin-top:14px; }
@@ -1126,8 +1350,23 @@ App.mock.api_uploadPhoto = function () { return { url: '' }; };
 // REORDER — what is low, grouped by supplier; one tap turns a group into a purchase order. Amazon keeps its cart link.
 App.screen({
   id: 'reorder', title: 'Reorder', order: 40,
-  render: function (root) { root.innerHTML = '<div id="reorder-top"></div><div id="l-reorder"></div>'; },
-  onShow: function () { this.refresh(); },
+  render: function (root) { root.innerHTML = '<div id="reorder-drafts"></div><div id="reorder-top"></div><div id="l-reorder"></div>'; },
+  onShow: function () { this.refresh(); this.refreshDrafts(); },
+  refreshDrafts: function () {
+    var self = this, box = App.$('reorder-drafts'); box.innerHTML = '';
+    App.call('api_draftOrders').then(function (drafts) {
+      if (!drafts.length) return;
+      var h = document.createElement('h3'); h.textContent = 'Draft orders waiting for you'; h.style.margin = '4px 0 8px'; box.appendChild(h);
+      drafts.forEach(function (p) {
+        var g = document.createElement('div'); g.className = 'group';
+        var head = document.createElement('h3'); head.innerHTML = '<b></b><span></span>'; head.querySelector('b').textContent = p.supplier + ' · ' + p.po; head.querySelector('span').textContent = p.lines.length + ' item(s) · ' + App.money(p.cost); g.appendChild(head);
+        p.lines.forEach(function (l) { var d = document.createElement('div'); d.className = 'row'; d.innerHTML = '<div class="name"><b></b></div><div class="price"></div>'; d.querySelector('b').textContent = l.item; d.querySelector('.price').textContent = 'order ' + l.qty; g.appendChild(d); });
+        var btns = document.createElement('div'); btns.className = 'chips'; btns.style.marginTop = '6px';
+        [['Confirm — I placed it', false], ['Discard', true]].forEach(function (x) { var b = document.createElement('button'); b.className = 'btn ' + (x[1] ? 'ghost ' : '') + 'sm'; b.textContent = x[0]; b.onclick = function () { if (!App.needPin()) return; b.disabled = true; App.call('api_confirmOrder', [App.pin, p.po, x[1]]).then(function (r) { App.toast(p.po + ' ' + r.status.toLowerCase()); self.refreshDrafts(); self.refresh(); App.load(); }).catch(function (e) { b.disabled = false; App.pinFailed(e); }); }; btns.appendChild(b); });
+        g.appendChild(btns); box.appendChild(g);
+      });
+    }).catch(function () {});
+  },
   refresh: function () {
     var self = this;
     App.$('reorder-top').innerHTML = '<p class="muted">Loading reorder list…</p>';
@@ -1181,6 +1420,8 @@ App.screen({
   }
 });
 App.mock.api_createOrders = function (p, lines) { return { pos: [{ po: 'PO-20260908-1', supplier: 'Amazon', lines: lines, cost: 55.2, expected: '2026-09-11' }] }; };
+App.mock.api_draftOrders = function () { return [{ po: 'PO-20260907-1', supplier: 'Cranberry Island Kitchen', date: '2026-09-07', cost: 96, lines: [{ sku: 'EX-003', item: 'Whoopie pie twin pack', qty: 40, unitCost: 2.4 }] }]; };
+App.mock.api_confirmOrder = function (p, po, discard) { return { po: po, status: discard ? 'Cancelled' : 'Ordered', lines: 1 }; };
 App.mock.api_makerEmailText = function () { return [{ vendor: 'Cranberry Island Kitchen', to: '', subject: 'Order', body: 'Hi,\n\n  40 × Whoopie pie twin pack\n\nThanks' }]; };
 </script>
 
@@ -1282,6 +1523,320 @@ App.screen({
 App.mock.api_expense = function (p, o) { return { row: 2, category: o.category, amount: o.amount, date: '2026-09-08' }; };
 App.mock.api_expenses = function () { return { month: '2026-09', total: 61.5, byCategory: { 'bags & tags': 41.5, fees: 20 }, categories: [], rows: [{ date: '2026-09-06', category: 'bags & tags', amount: 41.5, paidTo: 'Temu', note: 'kraft bags', who: 'Elliott' }, { date: '2026-09-02', category: 'fees', amount: 20, paidTo: 'Square', note: '', who: '' }] }; };
 App.mock.api_money = function () { var p = { sales: 1180, cogs: 560, hostShare: 236, makerShare: 48, expenses: 61.5, net: 274.5, tax: 41, cash: 300, card: 880 }; return { thisMonth: p, lastMonth: p, d90: p, owed: { host: { name: 'Common House of Pizza', accrued: 236, paid: 0, owed: 236 }, makers: [{ name: 'Tides & Threads (Sarah)', earned: 48, paid: 0, owed: 48 }] } }; };
+</script>
+
+<!-- 65_orders.html -->
+<script>
+// ORDERS — online orders waiting to ship: pack it, enter the tracking number, the customer gets an email.
+App.screen({
+  id: 'orders', title: 'Orders', order: 65,
+  render: function (root) { root.innerHTML = '<div class="list" id="on-list"><p class="muted">Loading…</p></div>'; },
+  onShow: function () { this.refresh(); },
+  refresh: function () {
+    var self = this, list = App.$('on-list'); list.innerHTML = '';
+    App.call('api_onlineOrders').then(function (orders) {
+      var open = orders.filter(function (o) { return o.status === 'To ship'; }), done = orders.filter(function (o) { return o.status !== 'To ship'; }).slice(0, 10);
+      if (!open.length) { var p = document.createElement('p'); p.className = 'muted'; p.textContent = 'Nothing to ship.'; list.appendChild(p); }
+      open.concat(done).forEach(function (o) {
+        var d = document.createElement('div'); d.className = 'row'; d.style.flexDirection = 'column'; d.style.alignItems = 'stretch';
+        d.innerHTML = '<div><b></b> <span class="muted"></span></div><div class="muted items"></div><div class="muted addr"></div>';
+        d.querySelector('b').textContent = o.id + ' · ' + App.money(o.total); d.querySelector('span').textContent = o.date + ' · ' + o.status + (o.tracking ? ' · ' + o.tracking : '');
+        d.querySelector('.items').textContent = o.items; d.querySelector('.addr').textContent = o.name + ' — ' + o.address;
+        if (o.status === 'To ship') { var b = document.createElement('button'); b.className = 'btn sm'; b.style.marginTop = '8px'; b.textContent = 'Mark shipped'; b.onclick = function () { var t = prompt('Tracking number (optional)') || ''; if (!App.needPin()) return; b.disabled = true; App.call('api_shipOrder', [App.pin, o.id, t]).then(function () { App.toast(o.id + ' shipped, customer emailed'); self.refresh(); }).catch(function (e) { b.disabled = false; App.pinFailed(e); }); }; d.appendChild(b); }
+        list.appendChild(d);
+      });
+    }).catch(function (e) { list.innerHTML = '<p class="muted">' + (e.message || e) + '</p>'; });
+  }
+});
+App.mock.api_onlineOrders = function () { return [{ id: 'ON-3F9A2C1B', date: '2026-09-08', name: 'Pat Doe', email: 'pat@example.com', address: '12 Elm St, Portland ME 04101', items: '2 × Wild blueberry jam 8oz, 1 × Balsam fir pillow 5x5', total: 36, status: 'To ship', tracking: '' }]; };
+App.mock.api_shipOrder = function (p, id, t) { return { id: id, status: 'Shipped', tracking: t }; };
+</script>
+
+<!-- 72_network.html -->
+<script>
+// NETWORK — the van and the run: what to load, the stops in driving order, drop stock at a site, approve transfers.
+App.screen({
+  id: 'network', title: 'Van', order: 72,
+  render: function (root) {
+    root.innerHTML = '<div id="net-route"></div><h3 style="margin:14px 0 6px">In the van</h3><div class="list" id="net-van"><p class="muted">Loading…</p></div>' +
+      '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn sm" id="net-load">Load from the shelf</button><button class="btn ghost sm" id="net-drop">Drop at a site</button><button class="btn ghost sm" id="net-pick">What to load</button></div>' +
+      '<h3 style="margin:16px 0 6px">Transfers waiting</h3><div class="list" id="net-xfers"></div>';
+    var self = this;
+    App.$('net-load').onclick = function () { self.move('load'); };
+    App.$('net-drop').onclick = function () { self.move('drop'); };
+    App.$('net-pick').onclick = function () { self.pickList(); };
+  },
+  onShow: function () { this.refresh(); },
+  refresh: function () {
+    var self = this;
+    App.call('api_van').then(function (v) {
+      var list = App.$('net-van'); list.innerHTML = '';
+      if (!v.stock.length) { list.innerHTML = '<p class="muted">Empty.</p>'; }
+      v.stock.forEach(function (s) { var d = document.createElement('div'); d.className = 'row'; d.innerHTML = '<span></span><b></b>'; d.querySelector('span').textContent = s.item; d.querySelector('b').textContent = '× ' + s.qty; list.appendChild(d); });
+      if (v.stock.length) { var p = document.createElement('p'); p.className = 'muted'; p.textContent = App.money(v.value) + ' at cost on board'; list.appendChild(p); }
+    }).catch(function (e) { App.$('net-van').innerHTML = '<p class="muted">' + (e.message || e) + '</p>'; });
+    App.call('api_drivingRoute').then(function (R) {
+      var el = App.$('net-route'); el.innerHTML = '';
+      var h = document.createElement('h3'); h.style.margin = '4px 0 6px'; h.textContent = R.order.length ? 'The run' + (R.optimized ? ' · ' + R.miles + ' mi, about ' + Math.round(R.minutes / 60 * 10) / 10 + ' h' : '') : 'Nothing to deliver'; el.appendChild(h);
+      R.order.forEach(function (name, i) {
+        var site = R.sites.filter(function (s) { return s.name === name; })[0] || { lines: [] };
+        var d = document.createElement('div'); d.className = 'row'; d.style.flexDirection = 'column'; d.style.alignItems = 'stretch';
+        d.innerHTML = '<div><b></b> <span class="muted"></span></div><div class="muted items"></div>';
+        d.querySelector('b').textContent = (i + 1) + '. ' + name; d.querySelector('span').textContent = (R.legs[i] ? R.legs[i].miles + ' mi' : '') + (site.address ? ' · ' + site.address : '');
+        d.querySelector('.items').textContent = site.reachable === false ? 'unreachable' : site.lines.map(function (l) { return l.qty + ' × ' + l.item; }).join(', ');
+        el.appendChild(d);
+      });
+      if (R.mapsUrl) { var a = document.createElement('a'); a.className = 'btn ghost sm'; a.style.display = 'inline-block'; a.style.marginTop = '8px'; a.href = R.mapsUrl; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Open in Google Maps'; el.appendChild(a); }
+    }).catch(function () {});
+    App.call('api_transfers', ['Requested']).then(function (xs) {
+      var list = App.$('net-xfers'); list.innerHTML = '';
+      if (!xs.length) { list.innerHTML = '<p class="muted">None.</p>'; return; }
+      xs.forEach(function (t) {
+        var d = document.createElement('div'); d.className = 'row'; d.style.flexDirection = 'column'; d.style.alignItems = 'stretch';
+        d.innerHTML = '<div><b></b> <span class="muted"></span></div><div class="acts" style="display:flex;gap:8px;margin-top:6px"></div>';
+        d.querySelector('b').textContent = t.qty + ' × ' + t.item + ' → ' + t.to; d.querySelector('span').textContent = t.date + (t.by ? ' · asked by ' + t.by : '') + (t.note ? ' · ' + t.note : '');
+        var ok = document.createElement('button'); ok.className = 'btn sm'; ok.textContent = 'Approve'; var no = document.createElement('button'); no.className = 'btn ghost sm'; no.textContent = 'Decline';
+        var decide = function (yes) { if (!App.needPin()) return; ok.disabled = no.disabled = true; App.call('api_decideTransfer', [App.pin, t.id, yes, '']).then(function () { App.toast(yes ? 'Approved and moved' : 'Declined'); self.refresh(); }).catch(function (e) { ok.disabled = no.disabled = false; App.pinFailed(e); }); };
+        ok.onclick = function () { decide(true); }; no.onclick = function () { decide(false); };
+        d.querySelector('.acts').appendChild(ok); d.querySelector('.acts').appendChild(no); list.appendChild(d);
+      });
+    }).catch(function () {});
+  },
+  move: function (kind) {
+    var self = this;
+    var it = App.items(); if (!it.length) return App.toast('No items loaded', true);
+    var name = prompt(kind === 'load' ? 'Item to load (name or SKU)' : 'Item to drop (name or SKU)'); if (!name) return;
+    var hit = App.filtered(name)[0]; if (!hit) return App.toast('No item matches', true);
+    var qty = parseInt(prompt('How many ' + hit.item + '?', '1') || '0', 10); if (!(qty > 0)) return;
+    var go = function (toId) { if (!App.needPin()) return; App.call(kind === 'load' ? 'api_vanLoad' : 'api_vanDrop', kind === 'load' ? [App.pin, [{ sku: hit.sku, qty: qty }], App.staff] : [App.pin, [{ sku: hit.sku, qty: qty }], toId, App.staff]).then(function () { App.toast((kind === 'load' ? 'Loaded ' : 'Dropped ') + qty + ' × ' + hit.item); App.beep(); self.refresh(); }).catch(function (e) { App.pinFailed(e); }); };
+    if (kind === 'load') return go('');
+    App.call('api_locations').then(function (locs) { var names = locs.filter(function (l) { return l.status !== 'Closed'; }).map(function (l) { return l.name; }); App.choose('Drop at', names, names[0], function (n) { var l = locs.filter(function (x) { return x.name === n; })[0]; go(l ? l.id : ''); }); });
+  },
+  pickList: function () {
+    App.call('api_vanPickList').then(function (p) {
+      if (!p.length) return App.toast('Nothing to load — every site is stocked');
+      alert('Load for the run:\n\n' + p.filter(function (x) { return x.toLoad > 0; }).map(function (x) { return x.toLoad + ' × ' + x.item + '  (' + x.sites.join(', ') + ')'; }).join('\n') + (p.some(function (x) { return x.toLoad === 0; }) ? '\n\nAlready on board: ' + p.filter(function (x) { return x.toLoad === 0; }).map(function (x) { return x.item; }).join(', ') : ''));
+    }).catch(function (e) { App.toast(e.message || String(e), true); });
+  }
+});
+App.mock.api_van = function () { return { stock: [{ sku: 'EX-002', item: 'Wild blueberry jam 8oz', qty: 12 }], value: 54 }; };
+App.mock.api_drivingRoute = function () { return { order: ['Camden', 'Rockland'], legs: [{ miles: 14.2, minutes: 24 }, { miles: 8.1, minutes: 15 }], optimized: true, miles: 22.3, minutes: 39, mapsUrl: 'https://www.google.com/maps/dir/?api=1', sites: [{ name: 'Camden', address: '1 Main St, Camden ME', reachable: true, lines: [{ sku: 'EX-002', item: 'Wild blueberry jam 8oz', qty: 6 }] }, { name: 'Rockland', address: '2 Main St, Rockland ME', reachable: true, lines: [] }], suppliers: [] }; };
+App.mock.api_transfers = function () { return [{ id: 'xfer:1', date: '2026-09-08', sku: 'EX-003', item: 'Balsam fir pillow 5x5', qty: 4, to: 'Camden', status: 'Requested', by: 'Sam', note: '' }]; };
+App.mock.api_decideTransfer = function (p, id, yes) { return { transferId: id, status: yes ? 'Approved' : 'Declined' }; };
+App.mock.api_vanLoad = function () { return { loaded: [], stock: [] }; }; App.mock.api_vanDrop = function () { return { dropped: [], stock: [] }; }; App.mock.api_vanPickList = function () { return []; }; App.mock.api_locations = function () { return [{ name: 'Camden', id: 'REMOTE-1', status: 'Active' }]; };
+</script>
+
+<!-- 80_close.html -->
+<style>
+  .steps { display:grid; gap:10px; }
+  .step { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .step h3 { margin:0 0 6px; font-size:15px; display:flex; justify-content:space-between; }
+  .step h3 .ok { color:var(--ok); }
+  .step textarea { width:100%; min-height:70px; font-size:16px; padding:10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); }
+</style>
+<script>
+// CLOSE — the end-of-day wizard: count the drawer, finish today's counts, note anything odd, done in three minutes.
+App.screen({
+  id: 'close', title: 'Close', order: 80,
+  render: function (root) { root.innerHTML = '<div class="steps" id="close-steps"></div>'; },
+  onShow: function () { this.refresh(); },
+  refresh: function () {
+    var self = this, box = App.$('close-steps'); box.innerHTML = '<p class="muted">Loading…</p>';
+    App.call('api_closeStatus').then(function (st) {
+      box.innerHTML = '';
+      if (st.closed) { box.innerHTML = '<div class="step"><h3>Today is closed <span class="ok">✓</span></h3><p class="muted">Sales ' + App.money(st.salesToday) + '. See you tomorrow.</p></div>'; return; }
+      var mk = function (title, body, done) { var d = document.createElement('div'); d.className = 'step'; d.innerHTML = '<h3><span></span><span class="ok"></span></h3>'; d.querySelector('h3 span').textContent = title; if (done) d.querySelector('.ok').textContent = '✓'; if (body) d.appendChild(body); box.appendChild(d); return d; };
+      // 1 cash
+      var cashBody = document.createElement('div'); var counted = null;
+      if (st.cash.open) { cashBody.innerHTML = '<div class="muted">Drawer open since ' + st.cash.since + ' · expected ' + App.money(st.cash.expected) + '</div><div class="pin"><input type="number" id="cl-cash" placeholder="Cash counted $" inputmode="decimal"></div>'; }
+      else cashBody.innerHTML = '<div class="muted">Drawer is closed.</div>';
+      mk('1. Count the drawer', cashBody, !st.cash.open);
+      // 2 counts
+      var cb = document.createElement('div'); cb.innerHTML = '<div class="muted">' + st.cycle.done + ' of ' + st.cycle.total + " of today's counts done" + (st.cycle.remaining ? ' — <a class="link" href="#" id="cl-go-count">finish them</a>' : '') + '</div>';
+      mk("2. Today's counts", cb, st.cycle.remaining === 0);
+      var go = App.$('cl-go-count'); if (go) go.onclick = function (e) { e.preventDefault(); App.show('count'); };
+      // 3 anything odd
+      var nb = document.createElement('div'); nb.innerHTML = '<textarea id="cl-notes" placeholder="Anything odd today? Damaged stock, a complaint, something staff should know."></textarea><div class="chips" id="cl-inc"></div>';
+      mk('3. Anything to note', nb, false);
+      (st.incidentTypes || []).forEach(function (t) { var c = document.createElement('button'); c.className = 'chip'; c.textContent = '+ ' + t; c.onclick = function () { var note = prompt('What happened? (' + t + ')'); if (!note) return; if (!App.needPin()) return; App.call('api_incident', [App.pin, { type: t, note: note, who: App.staff }]).then(function () { App.toast('Logged'); }).catch(App.pinFailed); }; App.$('cl-inc').appendChild(c); });
+      // 4 done
+      var db = document.createElement('div'); db.innerHTML = '<div class="muted">Sales today ' + App.money(st.salesToday) + ' · this week ' + App.money(st.week) + (st.incidents ? ' · ' + st.incidents + ' incident(s) logged' : '') + '</div><button class="btn" id="cl-done" style="margin-top:8px">Close the day</button>';
+      mk('4. Close', db, false);
+      App.$('cl-done').onclick = function () {
+        var c = App.$('cl-cash'); var val = c ? c.value : null;
+        if (st.cash.open && val === '') return App.toast('Count the drawer first', true);
+        if (!App.needPin()) return;
+        var b = App.$('cl-done'); b.disabled = true;
+        App.call('api_closeDay', [App.pin, { counted: st.cash.open ? Number(val) : null, notes: App.$('cl-notes').value, who: App.staff }]).then(function (r) {
+          App.toast('Closed. ' + App.money(r.sales) + ' today' + (r.cashDifference !== '' && r.cashDifference !== 0 ? ', drawer off by ' + App.money(Math.abs(r.cashDifference)) : '') + (r.emailed ? ' · summary emailed' : ''));
+          App.emit('closeDay', r); self.refresh();
+        }).catch(function (e) { b.disabled = false; App.pinFailed(e); });
+      };
+    }).catch(function (e) { box.innerHTML = '<p class="muted">' + (e.message || e) + '</p>'; });
+  }
+});
+App.mock.api_closeStatus = function () { return { date: '2026-09-08', closed: false, salesToday: 127, week: 412.5, cash: { open: true, since: '11:02', expected: 136.5, cashSales: 86.5 }, cycle: { remaining: 2, done: 3, total: 5 }, incidents: 0, incidentTypes: ['breakage', 'damaged stock', 'customer complaint', 'other'] }; };
+App.mock.api_closeDay = function (p, o) { return { date: '2026-09-08', sales: 127, cashDifference: Math.round((o.counted - 136.5) * 100) / 100, counts: '3/5', incidents: 0, emailed: true }; };
+App.mock.api_incident = function () { return { row: 2 }; };
+</script>
+
+<!-- 85_shelf.html -->
+<style>
+  .shelf-sec { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px; }
+  .shelf-sec img { width:100%; border-radius:10px; margin:6px 0; }
+  .shelf-sec label { display:flex; gap:10px; align-items:center; min-height:44px; font-size:16px; }
+  .shelf-sec input[type=checkbox] { width:24px; height:24px; }
+  .holds .row .price { font-size:13px; }
+</style>
+<script>
+// SHELF — how the shelf should look (planogram photos + reset checklist), holds for customers, incident reporting.
+App.screen({
+  id: 'shelf', title: 'Shelf', order: 75,
+  render: function (root) {
+    root.innerHTML = '<h3 style="margin:4px 0 6px">Reset the shelf</h3><div id="shelf-secs"><p class="muted">Loading…</p></div>' +
+      '<h3 style="margin:16px 0 6px">On hold</h3><div class="list holds" id="shelf-holds"></div><button class="btn ghost sm" id="shelf-hold" style="margin-top:8px">Hold an item for someone</button>' +
+      '<h3 style="margin:16px 0 6px">Something wrong?</h3><button class="btn ghost sm" id="shelf-inc">Report an incident</button>';
+    var self = this;
+    App.$('shelf-hold').onclick = function () {
+      var name = prompt('Item name or SKU'); if (!name) return;
+      var it = App.items().filter(function (x) { return x.item.toLowerCase() === name.toLowerCase() || x.sku.toLowerCase() === name.toLowerCase(); })[0] || App.filtered(name)[0];
+      if (!it) return App.toast('No item like that', true);
+      var qty = Number(prompt('How many of ' + it.item + '?', '1')); if (!(qty > 0)) return;
+      var who = prompt('For whom?'); if (!who) return;
+      if (!App.needPin()) return;
+      App.call('api_hold', [App.pin, { sku: it.sku, qty: qty, for: who, who: App.staff }]).then(function (r) { App.toast('Holding ' + r.qty + ' × ' + r.item + ' for ' + r.forWhom + ' until ' + r.until); App.load(); self.renderHolds(); }).catch(App.pinFailed);
+    };
+    App.$('shelf-inc').onclick = function () {
+      App.choose('What happened?', ['breakage', 'damaged stock', 'customer complaint', 'theft suspected', 'spill', 'equipment', 'other'], null, function (t) {
+        var note = prompt('Details (' + t + ')'); if (!note) return; if (!App.needPin()) return;
+        App.call('api_incident', [App.pin, { type: t, note: note, who: App.staff }]).then(function () { App.toast('Logged. Thanks.'); }).catch(App.pinFailed);
+      });
+    };
+  },
+  onShow: function () { this.renderSections(); this.renderHolds(); },
+  renderSections: function () {
+    App.call('api_planogram').then(function (secs) {
+      var box = App.$('shelf-secs'); box.innerHTML = '';
+      if (!secs.length) { box.innerHTML = '<p class="muted">No shelf photos yet. A manager adds them on the Planogram tab of the sheet (section, photo, checklist).</p>'; return; }
+      secs.forEach(function (s) {
+        var d = document.createElement('div'); d.className = 'shelf-sec';
+        d.innerHTML = '<b></b>' + (s.photo ? '<img alt="" loading="lazy">' : '') + '<div class="cl"></div>' + (s.notes ? '<div class="muted"></div>' : '');
+        d.querySelector('b').textContent = s.section; if (s.photo) d.querySelector('img').src = s.photo; if (s.notes) d.querySelector('.muted').textContent = s.notes;
+        s.checklist.forEach(function (c) { var l = document.createElement('label'); var cb = document.createElement('input'); cb.type = 'checkbox'; l.appendChild(cb); l.appendChild(document.createTextNode(c)); d.querySelector('.cl').appendChild(l); });
+        box.appendChild(d);
+      });
+    }).catch(function (e) { App.$('shelf-secs').innerHTML = '<p class="muted">' + (e.message || e) + '</p>'; });
+  },
+  renderHolds: function () {
+    var list = App.$('shelf-holds'); list.innerHTML = '';
+    var holds = (App.data && App.data.holds) || [];
+    if (!holds.length) { list.innerHTML = '<p class="muted">Nothing on hold.</p>'; return; }
+    holds.forEach(function (h) {
+      var d = document.createElement('div'); d.className = 'row'; d.innerHTML = '<div class="name"><b></b><span></span></div>';
+      d.querySelector('b').textContent = h.qty + ' × ' + h.item; d.querySelector('span').textContent = 'for ' + h.forWhom + ' · until ' + h.until;
+      ['sold', 'cancelled'].forEach(function (o) { var b = document.createElement('button'); b.className = 'btn ghost sm'; b.textContent = o === 'sold' ? 'Picked up' : 'Release'; b.onclick = function () { if (!App.needPin()) return; App.call('api_releaseHold', [App.pin, { sku: h.sku, for: h.forWhom, outcome: o }]).then(function () { App.toast(o === 'sold' ? 'Released — ring it up on Sell' : 'Released'); App.load().then(function () { App.show('shelf'); }); }).catch(App.pinFailed); }; d.appendChild(b); });
+      list.appendChild(d);
+    });
+  }
+});
+App.mock.api_planogram = function () { return [{ section: 'Left wall — Maine-made food', photo: '', checklist: ['Jam front and centre', 'Syrup labels facing out', 'Whoopie pies restocked from the box under the shelf'], notes: '' }]; };
+App.mock.api_hold = function (p, o) { return { sku: o.sku, item: o.sku, qty: o.qty, forWhom: o.for, until: '2026-09-15' }; };
+App.mock.api_releaseHold = function () { return { released: true }; };
+</script>
+
+<!-- 88_ask.html -->
+<style>
+  .ask textarea { width:100%; min-height:72px; font-size:16px; padding:10px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:inherit; }
+  .ask .answer { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; white-space:pre-wrap; margin-top:10px; line-height:1.45; }
+  .ask .chips { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
+</style>
+<script>
+// ASK — plain-English questions about the shop, answered by Claude from the sheet's own numbers. Also writes product copy.
+App.screen({
+  id: 'ask', title: 'Ask', order: 88,
+  render: function (root) {
+    var self = this;
+    root.innerHTML = '<div class="ask"><div id="ask-off" class="muted" hidden>Claude is not connected yet. A manager connects it from the sheet: Shop menu → Connect Claude.</div>' +
+      '<textarea id="ask-q" placeholder="Ask anything about the shop: what should I reorder before the weekend? which maker is owed the most? what sold best on rainy days?"></textarea>' +
+      '<div class="chips" id="ask-chips"></div><button class="btn" id="ask-go">Ask</button><div id="ask-out"></div>' +
+      '<h3 style="margin:18px 0 6px">Product copy</h3><p class="muted">A listing description, a social caption and hashtags for one item. Saved to the online store.</p>' +
+      '<div style="display:flex;gap:8px"><input type="text" id="ask-item" placeholder="Item name or SKU" list="ask-items" style="flex:1"><button class="btn sm" id="ask-write">Write</button></div><datalist id="ask-items"></datalist><div id="ask-copy"></div></div>';
+    ['What should I reorder this week?', 'Which maker is owed the most?', 'What did we sell yesterday?', 'Which items have not sold in 60 days?'].forEach(function (q) { var b = document.createElement('button'); b.className = 'chip'; b.textContent = q; b.onclick = function () { App.$('ask-q').value = q; self.ask(); }; App.$('ask-chips').appendChild(b); });
+    App.$('ask-go').onclick = function () { self.ask(); };
+    App.$('ask-write').onclick = function () { self.write(); };
+    App.$('ask-q').onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); self.ask(); } };
+  },
+  onData: function (d) {
+    App.$('ask-off').hidden = d.claude !== false;
+    var dl = App.$('ask-items'); if (dl) { dl.innerHTML = ''; (d.items || []).forEach(function (i) { var o = document.createElement('option'); o.value = i.item; dl.appendChild(o); }); }
+  },
+  ask: function () {
+    var q = App.$('ask-q').value.trim(); if (!q) return;
+    if (!App.needPin()) return;
+    var out = App.$('ask-out'), b = App.$('ask-go'); b.disabled = true; b.textContent = 'Thinking…';
+    var box = document.createElement('div'); box.className = 'answer'; box.textContent = 'Reading the sheet…'; out.insertBefore(box, out.firstChild);
+    App.call('api_ask', [App.pin, q, App.staff]).then(function (r) { box.textContent = ''; var qq = document.createElement('div'); qq.className = 'muted'; qq.textContent = q; var a = document.createElement('div'); a.textContent = r.answer; box.appendChild(qq); box.appendChild(a); App.$('ask-q').value = ''; })
+      .catch(function (e) { box.textContent = e.message || String(e); box.style.color = 'var(--bad)'; App.pinFailed(e); })
+      .then(function () { b.disabled = false; b.textContent = 'Ask'; });
+  },
+  write: function () {
+    var name = App.$('ask-item').value.trim(); if (!name) return;
+    var hit = App.filtered(name)[0]; if (!hit) return App.toast('No item matches', true);
+    if (!App.needPin()) return;
+    var b = App.$('ask-write'); b.disabled = true; b.textContent = 'Writing…';
+    App.call('api_describe', [App.pin, hit.sku, true]).then(function (r) {
+      var el = App.$('ask-copy'); el.innerHTML = '';
+      var box = document.createElement('div'); box.className = 'answer';
+      var h = document.createElement('b'); h.textContent = r.item; box.appendChild(h);
+      var d = document.createElement('div'); d.textContent = r.description; d.style.marginTop = '6px'; box.appendChild(d);
+      var c = document.createElement('div'); c.className = 'muted'; c.style.marginTop = '8px'; c.textContent = r.caption + (r.hashtags.length ? '\n' + r.hashtags.map(function (t) { return '#' + t; }).join(' ') : ''); box.appendChild(c);
+      var copy = document.createElement('button'); copy.className = 'btn ghost sm'; copy.style.marginTop = '8px'; copy.textContent = 'Copy caption'; copy.onclick = function () { var t = r.caption + '\n\n' + r.hashtags.map(function (x) { return '#' + x; }).join(' '); if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { App.toast('Copied'); }); else prompt('Copy this', t); }; box.appendChild(copy);
+      el.appendChild(box); App.toast('Description saved to the online store');
+    }).catch(function (e) { App.pinFailed(e); }).then(function () { b.disabled = false; b.textContent = 'Write'; });
+  }
+});
+App.mock.api_ask = function (p, q) { return { answer: 'Reorder the blueberry jam (4 left, sells 6 a week) and the balsam pillows (out). Everything else covers the weekend.', model: 'mock' }; };
+App.mock.api_describe = function (p, sku) { return { sku: sku, item: 'Wild blueberry jam 8oz', description: 'Small-batch jam made from wild Maine blueberries, cooked down with not much else. Bright, not too sweet, and the jar empties faster than you expect.', caption: 'Wild blueberries, one small kitchen in Union, and a jar that never lasts the week.', hashtags: ['maine', 'wildblueberry', 'unionmaine', 'smallbatch', 'giftshop'], model: 'mock' }; };
+</script>
+
+<!-- 90_help.html -->
+<style>
+  .help details { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:0 14px; margin-bottom:8px; }
+  .help summary { min-height:48px; display:flex; align-items:center; font-weight:700; cursor:pointer; }
+  .help p { margin:0 0 12px; }
+</style>
+<script>
+// HELP — the "how do I…" cards, so nobody has to phone the owner.
+App.screen({
+  id: 'help', title: 'Help', order: 95,
+  render: function (root) {
+    var cards = [
+      ['Ring up a sale', 'Tap Sell, tap the items (tap again for more, or use − and +). Pick Card, Cash or Split, then Charge. The receipt buttons appear after.'],
+      ['Undo a mistake', 'Right after a sale, tap Undo on the green message (30 seconds). Later than that, use Refund — that needs the manager PIN.'],
+      ['Take a discount', 'In the basket, tap a line for 10% / 20% / $1 off or Set price. "Basket % off" takes it off everything. "Markdown mode" auto-discounts what you tap.'],
+      ['Gift card or loyalty', 'Pay with a gift card: choose Gift card and type the code. Loyalty: type the customer\'s phone in the box before charging — a stamp is added.'],
+      ["Today's counts", 'Count shows a few items each day. Type what you actually see and Save. Do not type what you think it should be.'],
+      ['Stock arrived', 'Receive: if it was ordered, it is listed under "On the way" — tap Receive. Otherwise find the item and Add the quantity.'],
+      ['A maker brought pieces', 'Intake: pick the maker, list the pieces (new ones get a price and category), Log intake. They get an email receipt.'],
+      ['Hold something for a customer', 'Shelf > Hold an item for someone. It comes off the shelf count for a week; tap Picked up when they come.'],
+      ['Cash drawer', 'Cash: Open drawer with the float at the start of the day. Drop to safe when it gets full. Close and count at the end (or use Close).'],
+      ['Close the day', 'Close walks you through it: count the drawer, finish the counts, note anything odd, tap Close the day. Takes three minutes.'],
+      ['Something broke or went missing', 'Shelf > Report an incident, or use the chips on the Close screen. A photo helps.'],
+      ['Wrong PIN / new phone', 'Settings (⋯) > Forget my PIN, then enter it again. PINs are on the Settings tab of the sheet; the manager PIN is for refunds and payouts.'],
+      ['No signal', 'Keep going. Sales save on the phone and sync when the signal is back (a badge shows how many are waiting).'],
+      ['The bell', 'The 🔔 in the top bar lists what needs a person today: orders to ship, holds expiring, a day not closed, transfers to approve. Tap "Turn on phone notifications" inside it and urgent things pop up while the app is open.'],
+      ['An online order came in', 'Orders lists what to ship. Pack it, tap Mark shipped, type the tracking number — the customer gets the email.'],
+      ['Coupons', 'A sale over $20 prints a pizza coupon code on the receipt. When a customer brings a SHOP- code from the pizza counter, tap Basket % off > Coupon code… and type it.'],
+      ['The van and the run', 'Van: Load from the shelf before the run, Drop at a site when you get there. The stops show in driving order with a Maps link. Transfers staff request wait there for a manager's Approve.'],
+      ['Ask a question', 'Ask: type a plain question (what should I reorder? who is owed the most?) and Claude answers from the sheet. The same screen writes a product description and a social caption for any item.'],
+      ['A photo of a new piece', 'On Intake, take the photo for a new piece first — Claude fills in a name, price and category you can change.'],
+      ['Scan a barcode', 'Tap the ▤ button next to any search box and point the camera at the code. A USB or Bluetooth scanner works too.']
+    ];
+    var box = document.createElement('div'); box.className = 'help';
+    cards.forEach(function (c) { var d = document.createElement('details'); var s = document.createElement('summary'); s.textContent = c[0]; var p = document.createElement('p'); p.textContent = c[1]; d.appendChild(s); d.appendChild(p); box.appendChild(d); });
+    root.appendChild(box);
+  }
+});
 </script>
 
 </body>
