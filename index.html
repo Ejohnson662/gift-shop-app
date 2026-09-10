@@ -583,8 +583,8 @@ App.mock.api_reorder = function () { return { amazonCartUrl: 'https://www.amazon
   bell.onclick = function () { if (!last.at) refresh().then(open); else open(); };
   function start() { mount(); refresh(true); if (timer) clearInterval(timer); timer = setInterval(function () { if (document.visibilityState === 'visible') refresh(true); }, POLL); }
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && last.at && Date.now() - new Date(last.at).getTime() > 60000) refresh(true); });
-  App.on('load', function () { start(); });
-  App.on('pin', function () { refresh(true); });
+  var started = false;
+  App.on('data', function () { if (started) { refresh(true); return; } started = true; start(); });
   App.alerts = { refresh: refresh, open: open, get last() { return last; } };
   App.mock.api_alerts = function () { return { alerts: [{ id: 'ship', level: 'high', text: '1 online order to ship', screen: 'orders' }, { id: 'holds', level: 'info', text: '1 hold expires today: Balsam pillow for Jo', screen: 'shelf' }], high: 1, at: new Date().toISOString() }; };
 })();
